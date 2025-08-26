@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
-/** -----------------------------
- *  YOUR PRODUCTS & PRICING
- *  ----------------------------- */
+/* -----------------------------
+   PRODUCTS & PRICING
+------------------------------ */
 const ALBUMS = {
   signature: {
     label: "Signature Layflat",
@@ -13,7 +13,9 @@ const ALBUMS = {
       { key: "8x12",  label: "8×12 (horizontal)", price: 1000 },
       { key: "10x15", label: "10×15 (horizontal)", price: 1200 },
     ],
-    notes: "Premier album. Handmade. Smallest seam. 30 pages / 15 spreads included.",
+    intro:
+      "This is our Premier wedding album. It’s handmade and has the smallest seam in the industry. It’s meant to be a family heirloom.",
+    spreads: "Each album starts with 30 pages / 15 spreads.",
   },
   artisan: {
     label: "Artisan Flush",
@@ -23,52 +25,50 @@ const ALBUMS = {
       { key: "8x11",  label: "8×11 (horizontal)", price: 700 },
       { key: "11x14", label: "11×14 (horizontal)", price: 900 },
     ],
-    notes: "Budget-friendly. Machine pressed. 30 pages / 15 spreads included.",
+    intro:
+      "This is our Budget friendly album that is machine pressed and a little more delicate.",
+    spreads: "Each album starts with 30 pages / 15 spreads.",
   },
 };
 
-/** Parent Album pricing:
- *  - Small set: 8×8 or 6×9 = $325 each or two for $600
- *  - Large set: 10×10 or 8×11 = $400 each or two for $750
- */
+/* Parent Album pricing */
 const PARENT_ALBUMS = {
   small: { label: "8×8 or 6×9", each: 325, twoFor: 600 },
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
 };
 
-/** Standard Leather swatches (no price change yet) */
-const LEATHERS = [
-  { name: "Ash", color: "#6a6a72" },
-  { name: "Black Olive", color: "#3c3b2f" },
-  { name: "Blush", color: "#e7cdd3" },
-  { name: "Buttercream", color: "#ede7d4" },
-  { name: "Cardinal", color: "#b13434" },
-  { name: "Flamingo", color: "#d96b6d" },
-  { name: "Lavender", color: "#d9d6e3" },
-  { name: "Maroon", color: "#643838" },
-  { name: "Mist", color: "#bcbec4" },
-  { name: "Monsoon", color: "#2e3e5d" },
-  { name: "Mystique", color: "#4a2f2f" },
-  { name: "Nightfall", color: "#2a2a2a" },
-  { name: "Northern Lights", color: "#2f5959" },
-  { name: "Peppercorn", color: "#3e2e2a" },
-  { name: "Pink Coral", color: "#e1504f" },
-  { name: "Pink Quartz", color: "#e3c7c7" },
-  { name: "Polar", color: "#f5f5f5" },
-  { name: "Powder Blue", color: "#b9d6e5" },
-  { name: "Saddle", color: "#8a5a36" },
-  { name: "Seafoam", color: "#bfe2d6" },
-  { name: "Soft Gray", color: "#d9d9d9" },
-  { name: "Walnut", color: "#5e3f34" },
+/* Cover categories & names (exact from Miller’s PDF) */
+const COVER_CATEGORIES = [
+  {
+    key: "standard",
+    label: "Standard Leather",
+    options: [
+      "Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender",
+      "Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn",
+      "Pink Coral","Pink Quartz","Polar","Saddle","Powder Blue","Soft Gray","Seafoam","Walnut",
+    ],
+  },
+  {
+    key: "distressed",
+    label: "Distressed Leather",
+    options: ["Cream","Ore","Pebble","Sierra"],
+  },
+  {
+    key: "vegan",
+    label: "Vegan Leather",
+    options: ["Coyote","Shadow","Spritz","Storm","Sunset","Wave"],
+  },
+  {
+    key: "linen",
+    label: "Linen",
+    options: ["Ebony","Fog","Oyster","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"],
+  },
 ];
 
-/** Utility to price parent albums with bundle logic */
+/* Helpers */
 function priceParentAlbums(typeKey, qty) {
   if (!qty || qty <= 0) return 0;
   const tier = PARENT_ALBUMS[typeKey];
-  if (!tier) return 0;
-
-  // Use "two for" pricing for pairs, "each" pricing for remainder
   const pairs = Math.floor(qty / 2);
   const remainder = qty % 2;
   return pairs * tier.twoFor + remainder * tier.each;
@@ -76,71 +76,75 @@ function priceParentAlbums(typeKey, qty) {
 
 export default function AlbumDemo() {
   // selections
-  const [albumType, setAlbumType] = useState("signature"); // 'signature' or 'artisan'
+  const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
-  const [leather, setLeather] = useState(null);
+
+  // cover selection
+  const [coverTab, setCoverTab] = useState("standard");
+  const [coverChoice, setCoverChoice] = useState(null);
+
+  // upgrades
+  const [photoCover, setPhotoCover] = useState(false); // +$75
+  const PHOTO_COVER_PRICE = 75;
 
   // parent albums
-  const [parentType, setParentType] = useState("small"); // 'small' | 'large'
+  const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
 
-  // (Optional) demo coupon field (we won’t wire real coupons until Stripe)
+  // coupon demo
   const [couponCode, setCouponCode] = useState("");
 
-  // compute base album price
   const baseAlbumPrice = useMemo(() => {
     const album = ALBUMS[albumType];
     const size = album.sizes.find(s => s.key === albumSizeKey);
     return size ? size.price : 0;
   }, [albumType, albumSizeKey]);
 
-  const parentAlbumsPrice = useMemo(() => priceParentAlbums(parentType, Number(parentQty) || 0), [parentType, parentQty]);
+  const parentAlbumsPrice = useMemo(
+    () => priceParentAlbums(parentType, Number(parentQty) || 0),
+    [parentType, parentQty]
+  );
 
-  // cover upgrades… none yet; coming next (Photo +$75, Metal/Acrylic +$200, Debossing +$200, etc.)
-  const coverUpgradesPrice = 0;
-
-  const subtotal = baseAlbumPrice + parentAlbumsPrice + coverUpgradesPrice;
-
-  // demo coupon logic: if someone enters PREPAID400, subtract up to $400 (not below $0)
+  const upgradesPrice = (photoCover ? PHOTO_COVER_PRICE : 0);
+  const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
   const albumSizes = ALBUMS[albumType].sizes;
+  const currentCategory = COVER_CATEGORIES.find(c => c.key === coverTab);
 
   return (
-    <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 960, margin: "0 auto" }}>
+    <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
       <h1 style={{ marginBottom: 8 }}>Album Configurator Demo</h1>
-      <p style={{ color: "#555", marginTop: 0 }}>
-        {ALBUMS[albumType].notes}
-      </p>
 
-      {/* Step 1: Album Type */}
+      {/* Album intro box */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 12 }}>
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#fafafa" }}>
+          <strong>{ALBUMS[albumType].label}</strong>
+          <div style={{ marginTop: 6 }}>{ALBUMS[albumType].intro}</div>
+          <div style={{ marginTop: 6, color: "#555" }}>{ALBUMS[albumType].spreads}</div>
+        </div>
+      </div>
+
+      {/* 1) Album Type */}
       <Section title="1) Choose Album Type">
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {Object.entries(ALBUMS).map(([key, album]) => (
             <OptionButton
               key={key}
               selected={albumType === key}
-              onClick={() => {
-                setAlbumType(key);
-                // reset size to that album's first size
-                setAlbumSizeKey(ALBUMS[key].sizes[0].key);
-              }}
+              onClick={() => { setAlbumType(key); setAlbumSizeKey(ALBUMS[key].sizes[0].key); }}
               label={album.label}
             />
           ))}
         </div>
       </Section>
 
-      {/* Step 2: Album Size */}
+      {/* 2) Album Size */}
       <Section title="2) Choose Size">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
           {albumSizes.map(size => (
-            <Card
-              key={size.key}
-              selected={albumSizeKey === size.key}
-              onClick={() => setAlbumSizeKey(size.key)}
-            >
+            <Card key={size.key} selected={albumSizeKey === size.key} onClick={() => setAlbumSizeKey(size.key)}>
               <div style={{ fontWeight: 600 }}>{size.label}</div>
               <div>${size.price}</div>
             </Card>
@@ -148,36 +152,54 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* Step 3: Cover Material (Standard Leather for now) */}
-      <Section title="3) Pick Cover Material (Standard Leather)">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 12 }}>
-          {LEATHERS.map(l => (
+      {/* 3) Cover Material (tabs) */}
+      <Section title="3) Pick Cover Material">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {COVER_CATEGORIES.map(cat => (
+            <Tab key={cat.key} active={coverTab === cat.key} onClick={() => { setCoverTab(cat.key); setCoverChoice(null); }}>
+              {cat.label}
+            </Tab>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+          {currentCategory.options.map(name => (
             <div
-              key={l.name}
-              onClick={() => setLeather(l)}
+              key={name}
+              onClick={() => setCoverChoice(name)}
               style={{
                 cursor: "pointer",
-                border: leather?.name === l.name ? "3px solid #2563eb" : "1px solid #ccc",
-                borderRadius: 10,
+                border: coverChoice === name ? "2px solid #2563eb" : "1px solid #d1d5db",
+                borderRadius: 12,
                 overflow: "hidden",
-                textAlign: "center",
-                userSelect: "none"
+                background: "white",
               }}
             >
-              <div style={{ width: "100%", height: 60, backgroundColor: l.color }} />
-              <div style={{ padding: 6, fontSize: 14 }}>{l.name}</div>
+              {/* neutral tile; we’ll swap with real swatch thumbnails later */}
+              <div style={{ height: 70, background: "#f3f4f6" }} />
+              <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
             </div>
           ))}
         </div>
-        {leather && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 12 }}>
-            <small>Selected: <strong>{leather.name}</strong></small>
+
+        {coverChoice && (
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+            <small>Selected: <strong>{currentCategory.label} — {coverChoice}</strong></small>
           </motion.div>
         )}
       </Section>
 
-      {/* Step 4: Parent Albums */}
-      <Section title="4) Parent Albums (optional)">
+      {/* 4) Upgrades */}
+      <Section title="4) Upgrades">
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
+          <span>Photo Cover (+$75)</span>
+        </label>
+        {/* Metal/Acrylic + Debossing will be added next */}
+      </Section>
+
+      {/* 5) Parent Albums */}
+      <Section title="5) Parent Albums (optional)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label>
             Type:&nbsp;
@@ -189,22 +211,14 @@ export default function AlbumDemo() {
           </label>
           <label>
             Quantity:&nbsp;
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={parentQty}
-              onChange={e => setParentQty(e.target.value)}
-              style={{ width: 80 }}
-            />
+            <input type="number" min={0} step={1} value={parentQty} onChange={e => setParentQty(e.target.value)} style={{ width: 80 }} />
           </label>
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
         </div>
-        <small style={{ color: "#555" }}>Tip: enter 0 if none. Bundle pricing applies automatically to pairs.</small>
       </Section>
 
-      {/* Step 5: Coupon (demo) */}
-      <Section title="5) Coupon (demo)">
+      {/* 6) Coupon (demo) */}
+      <Section title="6) Coupon (demo)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <input
             placeholder="Enter coupon code (try PREPAID400)"
@@ -218,48 +232,21 @@ export default function AlbumDemo() {
 
       {/* Summary */}
       <Section title="Summary">
-        <div style={{ display: "grid", gap: 6, maxWidth: 480 }}>
+        <div style={{ display: "grid", gap: 6, maxWidth: 520 }}>
           <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
+          <Row label={`Cover: ${COVER_CATEGORIES.find(c => c.key === coverTab)?.label}${coverChoice ? ` — ${coverChoice}` : ""}`} value={"$0"} />
+          <Row label={`Photo Cover`} value={photoCover ? `+$${PHOTO_COVER_PRICE}` : "$0"} />
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
-          {/* future upgrades go here */}
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
           <Row label="Total" value={`$${total}`} strong big />
-        </div>
-
-        <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <button
-            style={primaryBtn}
-            onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
-          >
-            Continue to Checkout (coming next)
-          </button>
-          <button
-            style={ghostBtn}
-            onClick={() => {
-              const payload = {
-                albumType,
-                albumSizeKey,
-                leather: leather?.name || null,
-                parentType,
-                parentQty: Number(parentQty) || 0,
-                subtotal,
-                discount,
-                total,
-              };
-              navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-              alert("Selections copied to clipboard for now (we’ll email/save these next).");
-            }}
-          >
-            Copy selections (for testing)
-          </button>
         </div>
       </Section>
     </div>
   );
 }
 
-/** UI helpers */
+/* UI components */
 function Section({ title, children }) {
   return (
     <section style={{ margin: "20px 0" }}>
@@ -270,32 +257,20 @@ function Section({ title, children }) {
 }
 function Card({ children, selected, onClick }) {
   return (
-    <div
-      onClick={onClick}
-      style={{
-        cursor: "pointer",
-        border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
-        borderRadius: 12,
-        padding: 12,
-        background: selected ? "#f0f7ff" : "white",
-      }}
-    >
+    <div onClick={onClick} style={{
+      cursor: "pointer", border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      borderRadius: 12, padding: 12, background: selected ? "#f0f7ff" : "white",
+    }}>
       {children}
     </div>
   );
 }
 function OptionButton({ label, selected, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "8px 12px",
-        borderRadius: 9999,
-        border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
-        background: selected ? "#f0f7ff" : "white",
-        cursor: "pointer",
-      }}
-    >
+    <button onClick={onClick} style={{
+      padding: "8px 12px", borderRadius: 9999, border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: selected ? "#f0f7ff" : "white", cursor: "pointer",
+    }}>
       {label}
     </button>
   );
@@ -303,8 +278,7 @@ function OptionButton({ label, selected, onClick }) {
 function Row({ label, value, strong, big }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", fontWeight: strong ? 700 : 400, fontSize: big ? 20 : 16 }}>
-      <span>{label}</span>
-      <span>{value}</span>
+      <span>{label}</span><span>{value}</span>
     </div>
   );
 }
@@ -315,20 +289,14 @@ function Badge({ children }) {
     </span>
   );
 }
-
-const primaryBtn = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid #2563eb",
-  background: "#2563eb",
-  color: "white",
-  cursor: "pointer",
-};
-const ghostBtn = {
-  padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid #d1d5db",
-  background: "white",
-  color: "black",
-  cursor: "pointer",
-};
+function Tab({ children, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "6px 10px", borderRadius: 9999,
+      border: active ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: active ? "#f0f7ff" : "white", cursor: "pointer"
+    }}>
+      {children}
+    </button>
+  );
+}
