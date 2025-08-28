@@ -37,7 +37,7 @@ const PARENT_ALBUMS = {
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
 };
 
-/* Cover categories & EXACT swatch names (tiles for now; swap to images later) */
+/* Cover categories & swatch names (tiles for now; swap to images later) */
 const COVER_CATEGORIES = [
   {
     key: "standard",
@@ -66,20 +66,16 @@ const COVER_CATEGORIES = [
 ];
 
 /* Photo cover substrates (+$75 flat) */
-const PHOTO_SUBSTRATES = [
-  "Canvas",
-  "Glossy",
-  "Metallic",
-  "Matte Metallic",
-  "Satin",
-];
+const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
+const PHOTO_COVER_PRICE = 75;
 
-/* Metal/Acrylic (+$200 flat) configurations */
+/* Metal/Acrylic (+$200 flat) */
+const METAL_ACRYLIC_PRICE = 200;
 const METAL_ACRYLIC_TYPES = [
   { key: "metal", label: "Metal", finishes: ["Vivid Metal (high-gloss)", "Matte Metal (glare-reducing)", "Brushed Metal (textured)"] },
   { key: "acrylic", label: "Acrylic", finishes: ["Gloss Acrylic (high-gloss)", "Matte Acrylic (glare-reducing)"] },
 ];
-const BINDING_BACK = ["Leather", "Linen"]; // binding/back material choice
+const BINDING_BACK = ["Leather", "Linen"]; // for Metal/Acrylic only
 
 /* Helpers */
 function priceParentAlbums(typeKey, qty) {
@@ -91,34 +87,37 @@ function priceParentAlbums(typeKey, qty) {
 }
 
 export default function AlbumDemo() {
-  // selections
+  /* core selections */
   const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
 
-  // cover selection (base material)
-  const [coverTab, setCoverTab] = useState("standard");
-  const [coverChoice, setCoverChoice] = useState(null);
+  /* unified cover mode:
+     - one of: 'standard' | 'distressed' | 'vegan' | 'linen' | 'photo' | 'metalacrylic'
+     - ensures clients can only pick ONE cover type
+  */
+  const [coverMode, setCoverMode] = useState("standard");
 
-  // upgrades
-  const [photoCover, setPhotoCover] = useState(false); // +$75
+  /* base material swatch (used when mode is standard/distressed/vegan/linen) */
+  const [coverSwatch, setCoverSwatch] = useState(null);
+
+  /* photo cover fields (used when mode === 'photo') */
   const [photoSubstrate, setPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
   const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]); // up to 4
-  const PHOTO_COVER_PRICE = 75;
+  const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
 
-  const [metalAcrylic, setMetalAcrylic] = useState(false); // +$200
-  const [maType, setMaType] = useState("metal"); // 'metal' | 'acrylic'
+  /* metal/acrylic fields (used when mode === 'metalacrylic') */
+  const [maType, setMaType] = useState("metal");
   const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
   const [maBinding, setMaBinding] = useState(BINDING_BACK[0]);
-  const METAL_ACRYLIC_PRICE = 200;
 
-  // parent albums
+  /* parent albums */
   const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
 
-  // coupon demo
+  /* coupon demo */
   const [couponCode, setCouponCode] = useState("");
 
-  /* Pricing */
+  /* pricing */
   const baseAlbumPrice = useMemo(() => {
     const album = ALBUMS[albumType];
     const size = album.sizes.find(s => s.key === albumSizeKey);
@@ -130,17 +129,35 @@ export default function AlbumDemo() {
     [parentType, parentQty]
   );
 
-  const upgradesPrice =
-    (photoCover ? PHOTO_COVER_PRICE : 0) +
-    (metalAcrylic ? METAL_ACRYLIC_PRICE : 0);
+  const coverUpgradePrice =
+    coverMode === "photo" ? PHOTO_COVER_PRICE :
+    coverMode === "metalacrylic" ? METAL_ACRYLIC_PRICE :
+    0;
 
-  const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
+  const subtotal = baseAlbumPrice + parentAlbumsPrice + coverUpgradePrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
   const albumSizes = ALBUMS[albumType].sizes;
-  const currentCategory = COVER_CATEGORIES.find(c => c.key === coverTab);
-  const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
+
+  /* current base category (for swatches) if using a base material mode */
+  const baseCategory = COVER_CATEGORIES.find(c => c.key === coverMode);
+
+  /* when switching cover mode, clear incompatible fields */
+  function switchCoverMode(nextMode) {
+    setCoverMode(nextMode);
+    // reset selections so only one cover path is active
+    setCoverSwatch(null);
+    if (nextMode !== "photo") {
+      setPhotoSubstrate(PHOTO_SUBSTRATES[0]);
+      setPhotoImageNums(["", "", "", ""]);
+    }
+    if (nextMode !== "metalacrylic") {
+      setMaType("metal");
+      setMaFinish(METAL_ACRYLIC_TYPES[0].finishes[0]);
+      setMaBinding(BINDING_BACK[0]);
+    }
+  }
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -181,141 +198,137 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* 3) Cover Material (tabs) */}
+      {/* 3) Pick Cover Material (unified choices) */}
       <Section title="3) Pick Cover Material">
+        {/* tabs */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {/* Base materials */}
           {COVER_CATEGORIES.map(cat => (
-            <Tab key={cat.key} active={coverTab === cat.key} onClick={() => { setCoverTab(cat.key); setCoverChoice(null); }}>
+            <Tab key={cat.key} active={coverMode === cat.key} onClick={() => switchCoverMode(cat.key)}>
               {cat.label}
             </Tab>
           ))}
+          {/* Upgraded materials presented inline */}
+          <Tab active={coverMode === "photo"} onClick={() => switchCoverMode("photo")}>
+            Photo {coverMode === "photo" ? "(+$75)" : ""}
+          </Tab>
+          <Tab active={coverMode === "metalacrylic"} onClick={() => switchCoverMode("metalacrylic")}>
+            Metal/Acrylic {coverMode === "metalacrylic" ? "(+$200)" : ""}
+          </Tab>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
-          {currentCategory.options.map(name => (
-            <div
-              key={name}
-              onClick={() => setCoverChoice(name)}
-              style={{
-                cursor: "pointer",
-                border: coverChoice === name ? "2px solid #2563eb" : "1px solid #d1d5db",
-                borderRadius: 12,
-                overflow: "hidden",
-                background: "white",
-              }}
-            >
-              {/* neutral tile; swap with real swatch <img> later */}
-              <div style={{ height: 70, background: "#f3f4f6" }} />
-              <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
+        {/* Content area switches by coverMode */}
+        {/* A) Base material: show swatch grid */}
+        {baseCategory && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+              {baseCategory.options.map(name => (
+                <div
+                  key={name}
+                  onClick={() => setCoverSwatch(name)}
+                  style={{
+                    cursor: "pointer",
+                    border: coverSwatch === name ? "2px solid #2563eb" : "1px solid #d1d5db",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "white",
+                  }}
+                >
+                  {/* neutral tile; swap with real swatch <img> later */}
+                  <div style={{ height: 70, background: "#f3f4f6" }} />
+                  <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {coverChoice && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
-            <small>Selected: <strong>{COVER_CATEGORIES.find(c => c.key === coverTab)?.label} — {coverChoice}</strong></small>
-          </motion.div>
+            {coverSwatch && (
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+                <small>Selected: <strong>{baseCategory.label} — {coverSwatch}</strong></small>
+              </motion.div>
+            )}
+          </>
+        )}
+
+        {/* B) Photo Cover */}
+        {coverMode === "photo" && (
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Photo substrate:</label>
+              <select value={photoSubstrate} onChange={e => setPhotoSubstrate(e.target.value)}>
+                {PHOTO_SUBSTRATES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <span style={{ marginLeft: 10, color: "#444" }}>+${PHOTO_COVER_PRICE}</span>
+            </div>
+
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+              {photoImageNums.map((val, idx) => (
+                <div key={idx} style={{ display: "grid", gap: 6 }}>
+                  <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
+                  <input
+                    value={val}
+                    onChange={e => {
+                      const next = [...photoImageNums];
+                      next[idx] = e.target.value;
+                      setPhotoImageNums(next);
+                    }}
+                    placeholder="e.g., IMG_1234"
+                    style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
+              Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
+            </p>
+          </div>
+        )}
+
+        {/* C) Metal / Acrylic */}
+        {coverMode === "metalacrylic" && (
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Type:</label>
+              <select
+                value={maType}
+                onChange={e => {
+                  const nextType = e.target.value;
+                  setMaType(nextType);
+                  const defFinish = METAL_ACRYLIC_TYPES.find(t => t.key === nextType)?.finishes[0] || "";
+                  setMaFinish(defFinish);
+                }}
+              >
+                {METAL_ACRYLIC_TYPES.map(t => (
+                  <option key={t.key} value={t.key}>{t.label}</option>
+                ))}
+              </select>
+              <span style={{ marginLeft: 10, color: "#444" }}>+${METAL_ACRYLIC_PRICE}</span>
+            </div>
+
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Finish:</label>
+              <select value={maFinish} onChange={e => setMaFinish(e.target.value)}>
+                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.finishes.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Binding & back material:</label>
+              <select value={maBinding} onChange={e => setMaBinding(e.target.value)}>
+                {BINDING_BACK.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
+                (Metal/Acrylic cover pairs with your choice of Leather or Linen for the spine & back.)
+              </div>
+            </div>
+          </div>
         )}
       </Section>
 
-      {/* 4) Upgrades */}
-      <Section title="4) Upgrades">
-        <div style={{ display: "grid", gap: 16 }}>
-          {/* Photo Cover (+$75) */}
-          <div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
-              <span>Photo Cover (+$75)</span>
-            </label>
-
-            {photoCover && (
-              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginTop: 8 }}>
-                {/* substrate */}
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ fontSize: 13, marginRight: 8 }}>Photo substrate:</label>
-                  <select value={photoSubstrate} onChange={e => setPhotoSubstrate(e.target.value)}>
-                    {PHOTO_SUBSTRATES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-
-                {/* image numbers */}
-                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  {photoImageNums.map((val, idx) => (
-                    <div key={idx} style={{ display: "grid", gap: 6 }}>
-                      <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
-                      <input
-                        value={val}
-                        onChange={e => {
-                          const next = [...photoImageNums];
-                          next[idx] = e.target.value;
-                          setPhotoImageNums(next);
-                        }}
-                        placeholder="e.g., IMG_1234"
-                        style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
-                  Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Metal/Acrylic (+$200) */}
-          <div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={metalAcrylic} onChange={e => setMetalAcrylic(e.target.checked)} />
-              <span>Metal or Acrylic Cover (+$200)</span>
-            </label>
-
-            {metalAcrylic && (
-              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginTop: 8 }}>
-                {/* type */}
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 13, marginRight: 8 }}>Type:</label>
-                  <select
-                    value={maType}
-                    onChange={e => {
-                      const nextType = e.target.value;
-                      setMaType(nextType);
-                      const defFinish = METAL_ACRYLIC_TYPES.find(t => t.key === nextType)?.finishes[0] || "";
-                      setMaFinish(defFinish);
-                    }}
-                  >
-                    {METAL_ACRYLIC_TYPES.map(t => (
-                      <option key={t.key} value={t.key}>{t.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* finish */}
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 13, marginRight: 8 }}>Finish:</label>
-                  <select value={maFinish} onChange={e => setMaFinish(e.target.value)}>
-                    {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.finishes.map(f => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* binding/back */}
-                <div>
-                  <label style={{ fontSize: 13, marginRight: 8 }}>Binding & back material:</label>
-                  <select value={maBinding} onChange={e => setMaBinding(e.target.value)}>
-                    {BINDING_BACK.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </Section>
-
-      {/* 5) Parent Albums */}
-      <Section title="5) Parent Albums (optional)">
+      {/* 4) Parent Albums */}
+      <Section title="4) Parent Albums (optional)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label>
             Type:&nbsp;
@@ -333,8 +346,8 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* 6) Coupon (demo) */}
-      <Section title="6) Coupon (demo)">
+      {/* 5) Coupon (demo) */}
+      <Section title="5) Coupon (demo)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <input
             placeholder="Enter coupon code (try PREPAID400)"
@@ -350,28 +363,27 @@ export default function AlbumDemo() {
       <Section title="Summary">
         <div style={{ display: "grid", gap: 6, maxWidth: 560 }}>
           <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
-          <Row label={`Cover: ${COVER_CATEGORIES.find(c => c.key === coverTab)?.label}${coverChoice ? ` — ${coverChoice}` : ""}`} value={"$0"} />
 
-          {/* Upgrades rows */}
-          <Row label={`Photo Cover`} value={photoCover ? `+$${PHOTO_COVER_PRICE}` : "$0"} />
-          {photoCover && (
+          {/* Cover summary rows */}
+          {baseCategory && (
+            <Row label={`Cover: ${baseCategory.label}${coverSwatch ? ` — ${coverSwatch}` : ""}`} value={"$0"} />
+          )}
+          {coverMode === "photo" && (
             <>
+              <Row label="Cover: Photo" value={`+$${PHOTO_COVER_PRICE}`} />
               <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
                 Substrate: {photoSubstrate}
+                {enteredPhotoNums.length > 0 && <> — Images: {enteredPhotoNums.join(", ")}</>}
               </div>
-              {enteredPhotoNums.length > 0 && (
-                <div style={{ fontSize: 14, color: "#444", marginTop: 2 }}>
-                  Images: {enteredPhotoNums.join(", ")}
-                </div>
-              )}
             </>
           )}
-
-          <Row label={`Metal/Acrylic Cover`} value={metalAcrylic ? `+$${METAL_ACRYLIC_PRICE}` : "$0"} />
-          {metalAcrylic && (
-            <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
-              {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish} — Binding/Back: {maBinding}
-            </div>
+          {coverMode === "metalacrylic" && (
+            <>
+              <Row label="Cover: Metal/Acrylic" value={`+$${METAL_ACRYLIC_PRICE}`} />
+              <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish} — Binding/Back: {maBinding}
+              </div>
+            </>
           )}
 
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
@@ -393,11 +405,11 @@ export default function AlbumDemo() {
               const payload = {
                 albumType,
                 albumSizeKey,
-                cover: { category: coverTab, swatch: coverChoice },
-                upgrades: {
-                  photoCover: photoCover ? { price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums } : null,
-                  metalAcrylic: metalAcrylic ? { price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, binding: maBinding } : null,
-                },
+                cover: baseCategory
+                  ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
+                  : coverMode === "photo"
+                  ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
+                  : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, binding: maBinding },
                 parentType,
                 parentQty: Number(parentQty) || 0,
                 subtotal,
