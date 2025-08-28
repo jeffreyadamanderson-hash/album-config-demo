@@ -13,6 +13,7 @@ const ALBUMS = {
       { key: "8x12",  label: "8×12 (horizontal)", price: 1000 },
       { key: "10x15", label: "10×15 (horizontal)", price: 1200 },
     ],
+    // friendly copy you requested:
     intro:
       "This is our Premier wedding album. It’s handmade and has the smallest seam in the industry. It’s meant to be a family heirloom.",
     spreads: "Each album starts with 30 pages / 15 spreads.",
@@ -37,7 +38,7 @@ const PARENT_ALBUMS = {
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
 };
 
-/* Cover categories & names (exact from Miller’s PDF) */
+/* Cover categories & EXACT swatch names (placeholders show as gray tiles for now) */
 const COVER_CATEGORIES = [
   {
     key: "standard",
@@ -45,7 +46,7 @@ const COVER_CATEGORIES = [
     options: [
       "Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender",
       "Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn",
-      "Pink Coral","Pink Quartz","Polar","Saddle","Powder Blue","Soft Gray","Seafoam","Walnut",
+      "Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut",
     ],
   },
   {
@@ -61,7 +62,7 @@ const COVER_CATEGORIES = [
   {
     key: "linen",
     label: "Linen",
-    options: ["Ebony","Fog","Oyster","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"],
+    options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"],
   },
 ];
 
@@ -85,6 +86,7 @@ export default function AlbumDemo() {
 
   // upgrades
   const [photoCover, setPhotoCover] = useState(false); // +$75
+  const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]); // up to 4 image numbers
   const PHOTO_COVER_PRICE = 75;
 
   // parent albums
@@ -112,6 +114,8 @@ export default function AlbumDemo() {
 
   const albumSizes = ALBUMS[albumType].sizes;
   const currentCategory = COVER_CATEGORIES.find(c => c.key === coverTab);
+
+  const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -175,7 +179,7 @@ export default function AlbumDemo() {
                 background: "white",
               }}
             >
-              {/* neutral tile; we’ll swap with real swatch thumbnails later */}
+              {/* neutral tile; swap with real swatch <img> later */}
               <div style={{ height: 70, background: "#f3f4f6" }} />
               <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
             </div>
@@ -184,18 +188,44 @@ export default function AlbumDemo() {
 
         {coverChoice && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
-            <small>Selected: <strong>{currentCategory.label} — {coverChoice}</strong></small>
+            <small>Selected: <strong>{COVER_CATEGORIES.find(c => c.key === coverTab)?.label} — {coverChoice}</strong></small>
           </motion.div>
         )}
       </Section>
 
       {/* 4) Upgrades */}
       <Section title="4) Upgrades">
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
-          <span>Photo Cover (+$75)</span>
-        </label>
-        {/* Metal/Acrylic + Debossing will be added next */}
+        <div style={{ display: "grid", gap: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
+            <span>Photo Cover (+$75)</span>
+          </label>
+
+          {photoCover && (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                {photoImageNums.map((val, idx) => (
+                  <div key={idx} style={{ display: "grid", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
+                    <input
+                      value={val}
+                      onChange={e => {
+                        const next = [...photoImageNums];
+                        next[idx] = e.target.value;
+                        setPhotoImageNums(next);
+                      }}
+                      placeholder="e.g., IMG_1234"
+                      style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
+                Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
+              </p>
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* 5) Parent Albums */}
@@ -236,10 +266,45 @@ export default function AlbumDemo() {
           <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
           <Row label={`Cover: ${COVER_CATEGORIES.find(c => c.key === coverTab)?.label}${coverChoice ? ` — ${coverChoice}` : ""}`} value={"$0"} />
           <Row label={`Photo Cover`} value={photoCover ? `+$${PHOTO_COVER_PRICE}` : "$0"} />
+          {photoCover && enteredPhotoNums.length > 0 && (
+            <div style={{ fontSize: 14, color: "#444", marginTop: -2, marginBottom: 6 }}>
+              Photo Cover images: {enteredPhotoNums.join(", ")}
+            </div>
+          )}
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
           <Row label="Total" value={`$${total}`} strong big />
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            style={primaryBtn}
+            onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
+          >
+            Continue to Checkout (coming next)
+          </button>
+          <button
+            style={ghostBtn}
+            onClick={() => {
+              const payload = {
+                albumType,
+                albumSizeKey,
+                cover: { category: coverTab, swatch: coverChoice },
+                photoCover,
+                photoImageNums: enteredPhotoNums,
+                parentType,
+                parentQty: Number(parentQty) || 0,
+                subtotal,
+                discount,
+                total,
+              };
+              navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+              alert("Selections copied to clipboard for now (we’ll email/save these next).");
+            }}
+          >
+            Copy selections (for testing)
+          </button>
         </div>
       </Section>
     </div>
@@ -300,3 +365,20 @@ function Tab({ children, active, onClick }) {
     </button>
   );
 }
+
+const primaryBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #2563eb",
+  background: "#2563eb",
+  color: "white",
+  cursor: "pointer",
+};
+const ghostBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "white",
+  color: "black",
+  cursor: "pointer",
+};
