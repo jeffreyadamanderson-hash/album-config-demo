@@ -382,3 +382,177 @@ export default function AlbumDemo() {
 
       {/* 4) Parent Albums */}
       <Section title="4) Parent Albums (optional)">
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <label>
+            Type:&nbsp;
+            <select value={parentType} onChange={e => setParentType(e.target.value)}>
+              {Object.entries(PARENT_ALBUMS).map(([key, tier]) => (
+                <option key={key} value={key}>{tier.label} — ${tier.each} ea or 2 for ${tier.twoFor}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Quantity:&nbsp;
+            <input type="number" min={0} step={1} value={parentQty} onChange={e => setParentQty(e.target.value)} style={{ width: 80 }} />
+          </label>
+          <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
+        </div>
+      </Section>
+
+      {/* 5) Coupon (demo) */}
+      <Section title="5) Coupon (demo)">
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            placeholder="Enter coupon code (try PREPAID400)"
+            value={couponCode}
+            onChange={e => setCouponCode(e.target.value)}
+            style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", minWidth: 280 }}
+          />
+          {discount > 0 && <Badge>−${discount} applied</Badge>}
+        </div>
+      </Section>
+
+      {/* Summary */}
+      <Section title="Summary">
+        <div style={{ display: "grid", gap: 6, maxWidth: 560 }}>
+          <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
+
+          {/* Cover summary rows */}
+          {baseCategory && (
+            <Row label={`Cover: ${baseCategory.label}${coverSwatch ? ` — ${coverSwatch}` : ""}`} value={"$0"} />
+          )}
+          {coverMode === "photo" && (
+            <>
+              <Row label="Cover: Photo" value={`+$${PHOTO_COVER_PRICE}`} />
+              <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+                Substrate: {photoSubstrate}
+                {enteredPhotoNums.length > 0 && <> — Images: {enteredPhotoNums.join(", ")}</>}
+              </div>
+            </>
+          )}
+          {coverMode === "metalacrylic" && (
+            <>
+              <Row label="Cover: Metal/Acrylic" value={`+$${METAL_ACRYLIC_PRICE}`} />
+              <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish}
+              </div>
+              <div style={{ fontSize: 14, color: "#444" }}>
+                Binding/Back: {COVER_CATEGORIES.find(c => c.key === maBindingCategory)?.label}{maBindingSwatch ? ` — ${maBindingSwatch}` : ""}
+              </div>
+            </>
+          )}
+
+          <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
+          <Row label="Subtotal" value={`$${subtotal}`} strong />
+          <Row label="Discount" value={`−$${discount}`} />
+          <Row label="Total" value={`$${total}`} strong big />
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            style={{ ...primaryBtn, opacity: coverIsComplete ? 1 : 0.6, pointerEvents: coverIsComplete ? "auto" : "none" }}
+            onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
+            title={coverIsComplete ? "Continue to Checkout (coming next)" : "Please complete your cover selection first"}
+          >
+            Continue to Checkout (coming next)
+          </button>
+          <button
+            style={ghostBtn}
+            onClick={() => {
+              const payload = {
+                albumType,
+                albumSizeKey,
+                cover: baseCategory
+                  ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
+                  : coverMode === "photo"
+                  ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
+                  : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
+                parentType,
+                parentQty: Number(parentQty) || 0,
+                subtotal,
+                discount,
+                total,
+              };
+              navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+              alert("Selections copied to clipboard (we’ll send these to you automatically once checkout is connected).");
+            }}
+          >
+            Copy selections (for testing)
+          </button>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* UI components */
+function Section({ title, children }) {
+  return (
+    <section style={{ margin: "20px 0" }}>
+      <h2 style={{ margin: "0 0 8px" }}>{title}</h2>
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>{children}</div>
+    </section>
+  );
+}
+function Card({ children, selected, onClick }) {
+  return (
+    <div onClick={onClick} style={{
+      cursor: "pointer", border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      borderRadius: 12, padding: 12, background: selected ? "#f0f7ff" : "white",
+    }}>
+      {children}
+    </div>
+  );
+}
+function OptionButton({ label, selected, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "8px 12px", borderRadius: 9999, border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: selected ? "#f0f7ff" : "white", cursor: "pointer",
+    }}>
+      {label}
+    </button>
+  );
+}
+function Row({ label, value, strong, big }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: strong ? 700 : 400, fontSize: big ? 20 : 16 }}>
+      <span>{label}</span><span>{value}</span>
+    </div>
+  );
+}
+function Badge({ children }) {
+  return (
+    <span style={{ border: "1px solid #d1d5db", borderRadius: 9999, padding: "4px 8px", fontSize: 12 }}>
+      {children}
+    </span>
+  );
+}
+function Tab({ children, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "6px 10px", borderRadius: 9999,
+      border: active ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: active ? "#f0f7ff" : "white", cursor: "pointer"
+    }}>
+      {children}
+    </button>
+  );
+}
+
+const primaryBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #2563eb",
+  background: "#2563eb",
+  color: "white",
+  cursor: "pointer",
+};
+const ghostBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "white",
+  color: "black",
+  cursor: "pointer",
+};
