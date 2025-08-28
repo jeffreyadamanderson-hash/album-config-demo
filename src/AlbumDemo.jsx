@@ -31,50 +31,56 @@ const ALBUMS = {
   },
 };
 
-/* Parent Album pricing */
+/* Parent Album pricing (unchanged for now) */
 const PARENT_ALBUMS = {
   small: { label: "8×8 or 6×9", each: 325, twoFor: 600 },
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
 };
 
-/* Cover categories & swatch names (tiles for now; swap to images later) */
-const COVER_CATEGORIES = [
-  {
-    key: "standard",
-    label: "Standard Leather",
-    options: [
-      "Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender",
-      "Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn",
-      "Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut",
-    ],
-  },
-  {
-    key: "distressed",
-    label: "Distressed Leather",
-    options: ["Cream","Ore","Pebble","Sierra"],
-  },
-  {
-    key: "vegan",
-    label: "Vegan Leather",
-    options: ["Coyote","Shadow","Spritz","Storm","Sunset","Wave"],
-  },
-  {
-    key: "linen",
-    label: "Linen",
-    options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"],
-  },
+/* -----------------------------
+   COVER SETS (by album type)
+------------------------------ */
+
+/* Signature swatches (from earlier) */
+const SIGNATURE_BASE_CATEGORIES = [
+  { key: "standard",   label: "Standard Leather", options: ["Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender","Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn","Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut"] },
+  { key: "distressed", label: "Distressed Leather", options: ["Cream","Ore","Pebble","Sierra"] },
+  { key: "vegan",      label: "Vegan Leather", options: ["Coyote","Shadow","Spritz","Storm","Sunset","Wave"] },
+  { key: "linen",      label: "Linen", options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"] },
+];
+
+/* Artisan swatches (from your list) */
+const ARTISAN_BASE_CATEGORIES = [
+  { key: "modern",  label: "Modern Genuine Leather",  options: ["Black","Dark Brown","Espresso","Navy Blue","Charcoal","Blue Grey","Distressed Navy Blue","Distressed Dark Green","Distressed Cinnamon","Distressed Caramel","Ivory","White"] },
+  { key: "classic", label: "Classic Genuine Leather", options: ["Black","Navy Blue","Dark Brown","Blue Grey","White","Beige"] },
+  { key: "leatherette", label: "Leatherette", options: ["Black","Navy Blue","Dark Hunter Green","Mahogany Brown","Denim Blue","Royal Blue","Red","Cinnamon","Cedar Brown","Grey","Pastel Mint","Cloud Blue","Burgundy","Eggshell","Blush Pink","Ivory","White","Walnut","Cherry Wood","Oak","Birch"] },
+  { key: "linen",   label: "Linen", options: ["Burgundy","Midnight Blue","Black","Dark Chocolate","Forest Green","Dark Hunter Green","Coffee","Steel Blue","Tortilla Brown","Concrete Grey","Petal Pink","Buttermilk","Teal","Stone Blue","Walnut","Dove Grey","Wheat","Sand","Green Tea","Oatmeal","Cream","Navy Blue","Slate Grey","Maroon","Pink Rose","Light Blue"] },
 ];
 
 /* Photo cover substrates (+$75 flat) */
 const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
 const PHOTO_COVER_PRICE = 75;
 
-/* Metal/Acrylic (+$200 flat) */
+/* Metal/Acrylic (+$200 flat) — Signature only */
 const METAL_ACRYLIC_PRICE = 200;
 const METAL_ACRYLIC_TYPES = [
   { key: "metal", label: "Metal", finishes: ["Vivid Metal (high-gloss)", "Matte Metal (glare-reducing)", "Brushed Metal (textured)"] },
   { key: "acrylic", label: "Acrylic", finishes: ["Gloss Acrylic (high-gloss)", "Matte Acrylic (glare-reducing)"] },
 ];
+
+/* Cover set config per album type */
+const COVER_SET = {
+  signature: {
+    baseCategories: SIGNATURE_BASE_CATEGORIES,
+    allowPhoto: true,
+    allowMetalAcrylic: true,
+  },
+  artisan: {
+    baseCategories: ARTISAN_BASE_CATEGORIES,
+    allowPhoto: true,
+    allowMetalAcrylic: false, // no Metal/Acrylic for Artisan
+  },
+};
 
 /* Helpers */
 function priceParentAlbums(typeKey, qty) {
@@ -90,32 +96,49 @@ export default function AlbumDemo() {
   const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
 
-  /* unified cover mode:
-     'standard' | 'distressed' | 'vegan' | 'linen' | 'photo' | 'metalacrylic'
-     (ensures only one cover option at a time)
-  */
-  const [coverMode, setCoverMode] = useState("standard");
+  /* cover state (unified) */
+  // coverMode is one of base category keys (varies per album type) or 'photo' or 'metalacrylic'
+  const defaultCoverMode = COVER_SET[albumType].baseCategories[0].key;
+  const [coverMode, setCoverMode] = useState(defaultCoverMode);
 
-  /* base material swatch (for standard/distressed/vegan/linen) */
-  const [coverSwatch, setCoverSwatch] = useState(null);
+  const [coverSwatch, setCoverSwatch] = useState(null); // for base materials
 
-  /* photo cover fields */
+  // photo cover fields
   const [photoSubstrate, setPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
-  const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]); // up to 4
+  const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]);
   const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
 
-  /* metal/acrylic fields */
+  // metal/acrylic fields (Signature only)
   const [maType, setMaType] = useState("metal");
   const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
-  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // 'standard' | 'distressed' | 'vegan' | 'linen'
+  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // reuse Signature categories for binding
   const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
-  /* parent albums */
+  /* parent albums (unchanged for now) */
   const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
 
   /* coupon demo */
   const [couponCode, setCouponCode] = useState("");
+
+  /* recompute when albumType switches */
+  function onChangeAlbumType(nextType) {
+    setAlbumType(nextType);
+    setAlbumSizeKey(ALBUMS[nextType].sizes[0].key);
+
+    // reset cover UI to that album's first base category
+    const firstKey = COVER_SET[nextType].baseCategories[0].key;
+    setCoverMode(firstKey);
+    setCoverSwatch(null);
+
+    // reset upgrade-specific state
+    setPhotoSubstrate(PHOTO_SUBSTRATES[0]);
+    setPhotoImageNums(["", "", "", ""]);
+    setMaType("metal");
+    setMaFinish(METAL_ACRYLIC_TYPES[0].finishes[0]);
+    setMaBindingCategory("standard");
+    setMaBindingSwatch(null);
+  }
 
   /* pricing */
   const baseAlbumPrice = useMemo(() => {
@@ -129,41 +152,22 @@ export default function AlbumDemo() {
     [parentType, parentQty]
   );
 
-  const coverUpgradePrice =
-    coverMode === "photo" ? PHOTO_COVER_PRICE :
-    coverMode === "metalacrylic" ? METAL_ACRYLIC_PRICE :
-    0;
+  const upgradesPrice =
+    (coverMode === "photo" ? PHOTO_COVER_PRICE : 0) +
+    (coverMode === "metalacrylic" && COVER_SET[albumType].allowMetalAcrylic ? METAL_ACRYLIC_PRICE : 0);
 
-  const subtotal = baseAlbumPrice + parentAlbumsPrice + coverUpgradePrice;
+  const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
-  const albumSizes = ALBUMS[albumType].sizes;
-
-  /* current base category (for swatches) if in base material mode */
-  const baseCategory = COVER_CATEGORIES.find(c => c.key === coverMode);
-  const bindingCategoryObj = COVER_CATEGORIES.find(c => c.key === maBindingCategory);
-
-  /* change cover mode and clear incompatible selections */
-  function switchCoverMode(nextMode) {
-    setCoverMode(nextMode);
-    setCoverSwatch(null);
-    if (nextMode !== "photo") {
-      setPhotoSubstrate(PHOTO_SUBSTRATES[0]);
-      setPhotoImageNums(["", "", "", ""]);
-    }
-    if (nextMode !== "metalacrylic") {
-      setMaType("metal");
-      setMaFinish(METAL_ACRYLIC_TYPES[0].finishes[0]);
-      setMaBindingCategory("standard");
-      setMaBindingSwatch(null);
-    }
-  }
+  /* resolve current cover set */
+  const currentSet = COVER_SET[albumType];
+  const baseCategory = currentSet.baseCategories.find(c => c.key === coverMode);
 
   const coverIsComplete =
     (baseCategory && !!coverSwatch) ||
     (coverMode === "photo") ||
-    (coverMode === "metalacrylic" && !!maBindingSwatch);
+    (coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && !!maBindingSwatch);
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -185,7 +189,7 @@ export default function AlbumDemo() {
             <OptionButton
               key={key}
               selected={albumType === key}
-              onClick={() => { setAlbumType(key); setAlbumSizeKey(ALBUMS[key].sizes[0].key); }}
+              onClick={() => onChangeAlbumType(key)}
               label={album.label}
             />
           ))}
@@ -195,7 +199,7 @@ export default function AlbumDemo() {
       {/* 2) Album Size */}
       <Section title="2) Choose Size">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-          {albumSizes.map(size => (
+          {ALBUMS[albumType].sizes.map(size => (
             <Card key={size.key} selected={albumSizeKey === size.key} onClick={() => setAlbumSizeKey(size.key)}>
               <div style={{ fontWeight: 600 }}>{size.label}</div>
               <div>${size.price}</div>
@@ -204,7 +208,7 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* 3) Pick Cover Material (unified choices) */}
+      {/* 3) Pick Cover Material (dynamic by album type) */}
       <Section title="3) Pick Cover Material">
         <div style={{ marginBottom: 6, color: "#666", fontSize: 13 }}>
           Choose one cover option.
@@ -212,17 +216,26 @@ export default function AlbumDemo() {
 
         {/* tabs */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          {COVER_CATEGORIES.map(cat => (
-            <Tab key={cat.key} active={coverMode === cat.key} onClick={() => switchCoverMode(cat.key)}>
+          {/* Base categories (from the current album's cover set) */}
+          {currentSet.baseCategories.map(cat => (
+            <Tab key={cat.key} active={coverMode === cat.key} onClick={() => { setCoverMode(cat.key); setCoverSwatch(null); }}>
               {cat.label}
             </Tab>
           ))}
-          <Tab active={coverMode === "photo"} onClick={() => switchCoverMode("photo")}>
-            Photo ( +${PHOTO_COVER_PRICE} )
-          </Tab>
-          <Tab active={coverMode === "metalacrylic"} onClick={() => switchCoverMode("metalacrylic")}>
-            Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
-          </Tab>
+
+          {/* Photo tab if allowed */}
+          {currentSet.allowPhoto && (
+            <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
+              Photo ( +${PHOTO_COVER_PRICE} )
+            </Tab>
+          )}
+
+          {/* Metal/Acrylic tab only for Signature */}
+          {currentSet.allowMetalAcrylic && (
+            <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
+              Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
+            </Tab>
+          )}
         </div>
 
         {/* A) Base material swatch grid */}
@@ -255,8 +268,8 @@ export default function AlbumDemo() {
           </>
         )}
 
-        {/* B) Photo Cover */}
-        {coverMode === "photo" && (
+        {/* B) Photo Cover (if allowed) */}
+        {coverMode === "photo" && currentSet.allowPhoto && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 13, marginRight: 8 }}>Photo substrate:</label>
@@ -290,8 +303,8 @@ export default function AlbumDemo() {
           </div>
         )}
 
-        {/* C) Metal / Acrylic */}
-        {coverMode === "metalacrylic" && (
+        {/* C) Metal/Acrylic (Signature only) */}
+        {coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 13, marginRight: 8 }}>Type:</label>
@@ -320,7 +333,7 @@ export default function AlbumDemo() {
               </select>
             </div>
 
-            {/* Binding & Back selection */}
+            {/* Binding & Back selection (Signature binding uses Signature categories) */}
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 13, marginBottom: 6 }}>
                 Binding & back material — please pick a material and color
@@ -329,10 +342,10 @@ export default function AlbumDemo() {
                 </span>
               </div>
 
-              {/* Selected confirmation OR hint */}
+              {/* selected confirmation OR hint */}
               {maBindingSwatch ? (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 8 }}>
-                  <small>Selected: <strong>{COVER_CATEGORIES.find(c => c.key === maBindingCategory)?.label} — {maBindingSwatch}</strong></small>
+                  <small>Selected: <strong>{SIGNATURE_BASE_CATEGORIES.find(c => c.key === maBindingCategory)?.label} — {maBindingSwatch}</strong></small>
                 </motion.div>
               ) : (
                 <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>
@@ -340,25 +353,22 @@ export default function AlbumDemo() {
                 </div>
               )}
 
-              {/* Category tabs */}
+              {/* binding category tabs */}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                {["standard","distressed","vegan","linen"].map(key => {
-                  const label = COVER_CATEGORIES.find(c => c.key === key)?.label || key;
-                  return (
-                    <Tab
-                      key={key}
-                      active={maBindingCategory === key}
-                      onClick={() => { setMaBindingCategory(key); setMaBindingSwatch(null); }}
-                    >
-                      {label}
-                    </Tab>
-                  );
-                })}
+                {SIGNATURE_BASE_CATEGORIES.filter(c => c.key !== "vegan").map(cat => ( // if you want to allow Vegan as binding, remove filter
+                  <Tab
+                    key={cat.key}
+                    active={maBindingCategory === cat.key}
+                    onClick={() => { setMaBindingCategory(cat.key); setMaBindingSwatch(null); }}
+                  >
+                    {cat.label}
+                  </Tab>
+                ))}
               </div>
 
-              {/* Swatch grid */}
+              {/* swatch grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
-                {bindingCategoryObj?.options.map(name => (
+                {SIGNATURE_BASE_CATEGORIES.find(c => c.key === maBindingCategory)?.options.map(name => (
                   <div
                     key={name}
                     onClick={() => setMaBindingSwatch(name)}
@@ -380,7 +390,7 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 4) Parent Albums */}
+      {/* 4) Parent Albums (placeholder – we’ll add cover/engraving next) */}
       <Section title="4) Parent Albums (optional)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label>
@@ -396,6 +406,9 @@ export default function AlbumDemo() {
             <input type="number" min={0} step={1} value={parentQty} onChange={e => setParentQty(e.target.value)} style={{ width: 80 }} />
           </label>
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
+        </div>
+        <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+          (Next: we’ll let you pick Parent Album covers — they’ll reuse the Artisan cover options.)
         </div>
       </Section>
 
@@ -415,7 +428,7 @@ export default function AlbumDemo() {
       {/* Summary */}
       <Section title="Summary">
         <div style={{ display: "grid", gap: 6, maxWidth: 560 }}>
-          <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
+          <Row label={`${ALBUMS[albumType].label} — ${ALBUMS[albumType].sizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
 
           {/* Cover summary rows */}
           {baseCategory && (
@@ -430,14 +443,14 @@ export default function AlbumDemo() {
               </div>
             </>
           )}
-          {coverMode === "metalacrylic" && (
+          {coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && (
             <>
               <Row label="Cover: Metal/Acrylic" value={`+$${METAL_ACRYLIC_PRICE}`} />
               <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
                 {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish}
               </div>
               <div style={{ fontSize: 14, color: "#444" }}>
-                Binding/Back: {COVER_CATEGORIES.find(c => c.key === maBindingCategory)?.label}{maBindingSwatch ? ` — ${maBindingSwatch}` : ""}
+                Binding/Back: {SIGNATURE_BASE_CATEGORIES.find(c => c.key === maBindingCategory)?.label}{maBindingSwatch ? ` — ${maBindingSwatch}` : ""}
               </div>
             </>
           )}
@@ -462,11 +475,12 @@ export default function AlbumDemo() {
               const payload = {
                 albumType,
                 albumSizeKey,
-                cover: baseCategory
-                  ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
-                  : coverMode === "photo"
-                  ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
-                  : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
+                cover:
+                  baseCategory
+                    ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
+                    : coverMode === "photo"
+                    ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
+                    : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
                 parentType,
                 parentQty: Number(parentQty) || 0,
                 subtotal,
