@@ -13,7 +13,6 @@ const ALBUMS = {
       { key: "8x12",  label: "8×12 (horizontal)", price: 1000 },
       { key: "10x15", label: "10×15 (horizontal)", price: 1200 },
     ],
-    // friendly copy you requested:
     intro:
       "This is our Premier wedding album. It’s handmade and has the smallest seam in the industry. It’s meant to be a family heirloom.",
     spreads: "Each album starts with 30 pages / 15 spreads.",
@@ -38,7 +37,7 @@ const PARENT_ALBUMS = {
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
 };
 
-/* Cover categories & EXACT swatch names (placeholders show as gray tiles for now) */
+/* Cover categories & EXACT swatch names (tiles for now; swap to images later) */
 const COVER_CATEGORIES = [
   {
     key: "standard",
@@ -66,6 +65,22 @@ const COVER_CATEGORIES = [
   },
 ];
 
+/* Photo cover substrates (+$75 flat) */
+const PHOTO_SUBSTRATES = [
+  "Canvas",
+  "Glossy",
+  "Metallic",
+  "Matte Metallic",
+  "Satin",
+];
+
+/* Metal/Acrylic (+$200 flat) configurations */
+const METAL_ACRYLIC_TYPES = [
+  { key: "metal", label: "Metal", finishes: ["Vivid Metal (high-gloss)", "Matte Metal (glare-reducing)", "Brushed Metal (textured)"] },
+  { key: "acrylic", label: "Acrylic", finishes: ["Gloss Acrylic (high-gloss)", "Matte Acrylic (glare-reducing)"] },
+];
+const BINDING_BACK = ["Leather", "Linen"]; // binding/back material choice
+
 /* Helpers */
 function priceParentAlbums(typeKey, qty) {
   if (!qty || qty <= 0) return 0;
@@ -80,14 +95,21 @@ export default function AlbumDemo() {
   const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
 
-  // cover selection
+  // cover selection (base material)
   const [coverTab, setCoverTab] = useState("standard");
   const [coverChoice, setCoverChoice] = useState(null);
 
   // upgrades
   const [photoCover, setPhotoCover] = useState(false); // +$75
-  const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]); // up to 4 image numbers
+  const [photoSubstrate, setPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
+  const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]); // up to 4
   const PHOTO_COVER_PRICE = 75;
+
+  const [metalAcrylic, setMetalAcrylic] = useState(false); // +$200
+  const [maType, setMaType] = useState("metal"); // 'metal' | 'acrylic'
+  const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
+  const [maBinding, setMaBinding] = useState(BINDING_BACK[0]);
+  const METAL_ACRYLIC_PRICE = 200;
 
   // parent albums
   const [parentType, setParentType] = useState("small");
@@ -96,6 +118,7 @@ export default function AlbumDemo() {
   // coupon demo
   const [couponCode, setCouponCode] = useState("");
 
+  /* Pricing */
   const baseAlbumPrice = useMemo(() => {
     const album = ALBUMS[albumType];
     const size = album.sizes.find(s => s.key === albumSizeKey);
@@ -107,14 +130,16 @@ export default function AlbumDemo() {
     [parentType, parentQty]
   );
 
-  const upgradesPrice = (photoCover ? PHOTO_COVER_PRICE : 0);
+  const upgradesPrice =
+    (photoCover ? PHOTO_COVER_PRICE : 0) +
+    (metalAcrylic ? METAL_ACRYLIC_PRICE : 0);
+
   const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
   const albumSizes = ALBUMS[albumType].sizes;
   const currentCategory = COVER_CATEGORIES.find(c => c.key === coverTab);
-
   const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
 
   return (
@@ -195,36 +220,97 @@ export default function AlbumDemo() {
 
       {/* 4) Upgrades */}
       <Section title="4) Upgrades">
-        <div style={{ display: "grid", gap: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
-            <span>Photo Cover (+$75)</span>
-          </label>
+        <div style={{ display: "grid", gap: 16 }}>
+          {/* Photo Cover (+$75) */}
+          <div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={photoCover} onChange={e => setPhotoCover(e.target.checked)} />
+              <span>Photo Cover (+$75)</span>
+            </label>
 
-          {photoCover && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                {photoImageNums.map((val, idx) => (
-                  <div key={idx} style={{ display: "grid", gap: 6 }}>
-                    <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
-                    <input
-                      value={val}
-                      onChange={e => {
-                        const next = [...photoImageNums];
-                        next[idx] = e.target.value;
-                        setPhotoImageNums(next);
-                      }}
-                      placeholder="e.g., IMG_1234"
-                      style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
-                    />
-                  </div>
-                ))}
+            {photoCover && (
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginTop: 8 }}>
+                {/* substrate */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, marginRight: 8 }}>Photo substrate:</label>
+                  <select value={photoSubstrate} onChange={e => setPhotoSubstrate(e.target.value)}>
+                    {PHOTO_SUBSTRATES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
+
+                {/* image numbers */}
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                  {photoImageNums.map((val, idx) => (
+                    <div key={idx} style={{ display: "grid", gap: 6 }}>
+                      <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
+                      <input
+                        value={val}
+                        onChange={e => {
+                          const next = [...photoImageNums];
+                          next[idx] = e.target.value;
+                          setPhotoImageNums(next);
+                        }}
+                        placeholder="e.g., IMG_1234"
+                        style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
+                  Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
+                </p>
               </div>
-              <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
-                Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Metal/Acrylic (+$200) */}
+          <div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={metalAcrylic} onChange={e => setMetalAcrylic(e.target.checked)} />
+              <span>Metal or Acrylic Cover (+$200)</span>
+            </label>
+
+            {metalAcrylic && (
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, marginTop: 8 }}>
+                {/* type */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 13, marginRight: 8 }}>Type:</label>
+                  <select
+                    value={maType}
+                    onChange={e => {
+                      const nextType = e.target.value;
+                      setMaType(nextType);
+                      const defFinish = METAL_ACRYLIC_TYPES.find(t => t.key === nextType)?.finishes[0] || "";
+                      setMaFinish(defFinish);
+                    }}
+                  >
+                    {METAL_ACRYLIC_TYPES.map(t => (
+                      <option key={t.key} value={t.key}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* finish */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 13, marginRight: 8 }}>Finish:</label>
+                  <select value={maFinish} onChange={e => setMaFinish(e.target.value)}>
+                    {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.finishes.map(f => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* binding/back */}
+                <div>
+                  <label style={{ fontSize: 13, marginRight: 8 }}>Binding & back material:</label>
+                  <select value={maBinding} onChange={e => setMaBinding(e.target.value)}>
+                    {BINDING_BACK.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </Section>
 
@@ -262,15 +348,32 @@ export default function AlbumDemo() {
 
       {/* Summary */}
       <Section title="Summary">
-        <div style={{ display: "grid", gap: 6, maxWidth: 520 }}>
+        <div style={{ display: "grid", gap: 6, maxWidth: 560 }}>
           <Row label={`${ALBUMS[albumType].label} — ${albumSizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
           <Row label={`Cover: ${COVER_CATEGORIES.find(c => c.key === coverTab)?.label}${coverChoice ? ` — ${coverChoice}` : ""}`} value={"$0"} />
+
+          {/* Upgrades rows */}
           <Row label={`Photo Cover`} value={photoCover ? `+$${PHOTO_COVER_PRICE}` : "$0"} />
-          {photoCover && enteredPhotoNums.length > 0 && (
-            <div style={{ fontSize: 14, color: "#444", marginTop: -2, marginBottom: 6 }}>
-              Photo Cover images: {enteredPhotoNums.join(", ")}
+          {photoCover && (
+            <>
+              <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+                Substrate: {photoSubstrate}
+              </div>
+              {enteredPhotoNums.length > 0 && (
+                <div style={{ fontSize: 14, color: "#444", marginTop: 2 }}>
+                  Images: {enteredPhotoNums.join(", ")}
+                </div>
+              )}
+            </>
+          )}
+
+          <Row label={`Metal/Acrylic Cover`} value={metalAcrylic ? `+$${METAL_ACRYLIC_PRICE}` : "$0"} />
+          {metalAcrylic && (
+            <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+              {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish} — Binding/Back: {maBinding}
             </div>
           )}
+
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
@@ -291,8 +394,10 @@ export default function AlbumDemo() {
                 albumType,
                 albumSizeKey,
                 cover: { category: coverTab, swatch: coverChoice },
-                photoCover,
-                photoImageNums: enteredPhotoNums,
+                upgrades: {
+                  photoCover: photoCover ? { price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums } : null,
+                  metalAcrylic: metalAcrylic ? { price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, binding: maBinding } : null,
+                },
                 parentType,
                 parentQty: Number(parentQty) || 0,
                 subtotal,
@@ -300,7 +405,7 @@ export default function AlbumDemo() {
                 total,
               };
               navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-              alert("Selections copied to clipboard for now (we’ll email/save these next).");
+              alert("Selections copied to clipboard (we’ll send these to you automatically once checkout is connected).");
             }}
           >
             Copy selections (for testing)
