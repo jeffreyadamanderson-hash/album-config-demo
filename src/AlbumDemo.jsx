@@ -31,7 +31,7 @@ const ALBUMS = {
   },
 };
 
-/* Parent Album pricing (covers included) */
+/* Parent Album pricing (base price; covers may add-on) */
 const PARENT_ALBUMS = {
   small: { label: "8×8 or 6×9", each: 325, twoFor: 600 },
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
@@ -57,9 +57,10 @@ const ARTISAN_BASE_CATEGORIES = [
   { key: "linen",   label: "Linen", options: ["Burgundy","Midnight Blue","Black","Dark Chocolate","Forest Green","Dark Hunter Green","Coffee","Steel Blue","Tortilla Brown","Concrete Grey","Petal Pink","Buttermilk","Teal","Stone Blue","Walnut","Dove Grey","Wheat","Sand","Green Tea","Oatmeal","Cream","Navy Blue","Slate Grey","Maroon","Pink Rose","Light Blue"] },
 ];
 
-/* Photo cover substrates (+$75 main album; included for parent) */
+/* Photo cover substrates */
 const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
-const PHOTO_COVER_PRICE = 75;
+const PHOTO_COVER_PRICE = 75; // applies to main album photo cover
+const PARENT_PHOTO_COVER_PRICE = 75; // applies per parent album
 
 /* Metal/Acrylic (+$200 flat) — Signature only */
 const METAL_ACRYLIC_PRICE = 200;
@@ -157,9 +158,16 @@ export default function AlbumDemo() {
     [parentType, parentQty]
   );
 
+  // Parent photo cover surcharge: +$75 EACH parent album if Photo is chosen
+  const parentPhotoCoverUpcharge = useMemo(() => {
+    const qty = Number(parentQty) || 0;
+    return parentCoverMode === "photo" ? qty * PARENT_PHOTO_COVER_PRICE : 0;
+  }, [parentCoverMode, parentQty]);
+
   const upgradesPrice =
     (coverMode === "photo" ? PHOTO_COVER_PRICE : 0) +
-    (coverMode === "metalacrylic" && COVER_SET[albumType].allowMetalAcrylic ? METAL_ACRYLIC_PRICE : 0);
+    (coverMode === "metalacrylic" && COVER_SET[albumType].allowMetalAcrylic ? METAL_ACRYLIC_PRICE : 0) +
+    parentPhotoCoverUpcharge;
 
   const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
@@ -237,7 +245,7 @@ export default function AlbumDemo() {
             </Tab>
           ))}
 
-        {/* Photo tab if allowed */}
+          {/* Photo tab if allowed */}
           {currentSet.allowPhoto && (
             <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
               Photo ( +${PHOTO_COVER_PRICE} )
@@ -341,7 +349,8 @@ export default function AlbumDemo() {
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 13, marginRight: 8 }}>Finish:</label>
               <select value={maFinish} onChange={e => setMaFinish(e.target.value)}>
-                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.finishes.map(f => (
+                {METAL_ACRYLIC_TYPES.find(t => c
+                  t.key === maType)?.finishes.map(f => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
@@ -426,10 +435,10 @@ export default function AlbumDemo() {
         {Number(parentQty) > 0 && (
           <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ fontSize: 13, marginBottom: 6 }}>
-              Parent Album Cover — please pick a material and color (same options as Artisan; included)
+              Parent Album Cover — please pick a material and color (same options as Artisan)
             </div>
 
-            {/* tabs: Artisan base categories + Photo (included) */}
+            {/* tabs: Artisan base categories + Photo ( +$75 each ) */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               {ARTISAN_BASE_CATEGORIES.map(cat => (
                 <Tab
@@ -444,7 +453,7 @@ export default function AlbumDemo() {
                 active={parentCoverMode === "photo"}
                 onClick={() => setParentCoverMode("photo")}
               >
-                Photo (included)
+                Photo ( +${PARENT_PHOTO_COVER_PRICE} each )
               </Tab>
             </div>
 
@@ -478,7 +487,7 @@ export default function AlbumDemo() {
               </>
             )}
 
-            {/* Photo cover inputs (included) */}
+            {/* Photo cover inputs ( +$75 each ) */}
             {parentCoverMode === "photo" && (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
                 <div style={{ marginBottom: 10 }}>
@@ -486,7 +495,7 @@ export default function AlbumDemo() {
                   <select value={parentPhotoSubstrate} onChange={e => setParentPhotoSubstrate(e.target.value)}>
                     {PHOTO_SUBSTRATES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
-                  <span style={{ marginLeft: 10, color: "#444" }}>(included)</span>
+                  <span style={{ marginLeft: 10, color: "#444" }}>+${PARENT_PHOTO_COVER_PRICE} each</span>
                 </div>
 
                 <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
@@ -577,10 +586,16 @@ export default function AlbumDemo() {
                 </div>
               )}
               {parentCoverMode === "photo" && (
-                <div style={{ fontSize: 14, color: "#444" }}>
-                  Parent Cover: Photo — Substrate: {parentPhotoSubstrate}
-                  {parentEnteredPhotoNums.length > 0 && <> — Images: {parentEnteredPhotoNums.join(", ")}</>}
-                </div>
+                <>
+                  <div style={{ fontSize: 14, color: "#444" }}>
+                    Parent Cover: Photo — Substrate: {parentPhotoSubstrate}
+                    {parentEnteredPhotoNums.length > 0 && <> — Images: {parentEnteredPhotoNums.join(", ")}</>}
+                  </div>
+                  <Row
+                    label={`Parent Photo Cover upcharge`}
+                    value={`+$${PARENT_PHOTO_COVER_PRICE} × ${Number(parentQty) || 0} = $${parentPhotoCoverUpcharge}`}
+                  />
+                </>
               )}
             </>
           )}
@@ -616,7 +631,7 @@ export default function AlbumDemo() {
                   cover:
                     ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)
                       ? { mode: parentCoverMode, category: ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label, swatch: parentCoverSwatch }
-                      : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums },
+                      : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums, priceEach: PARENT_PHOTO_COVER_PRICE, totalUpcharge: parentPhotoCoverUpcharge },
                 },
                 subtotal,
                 discount,
