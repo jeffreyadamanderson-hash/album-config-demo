@@ -31,7 +31,7 @@ const ALBUMS = {
   },
 };
 
-/* Parent Album pricing (unchanged for now) */
+/* Parent Album pricing (covers included) */
 const PARENT_ALBUMS = {
   small: { label: "8×8 or 6×9", each: 325, twoFor: 600 },
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
@@ -57,7 +57,7 @@ const ARTISAN_BASE_CATEGORIES = [
   { key: "linen",   label: "Linen", options: ["Burgundy","Midnight Blue","Black","Dark Chocolate","Forest Green","Dark Hunter Green","Coffee","Steel Blue","Tortilla Brown","Concrete Grey","Petal Pink","Buttermilk","Teal","Stone Blue","Walnut","Dove Grey","Wheat","Sand","Green Tea","Oatmeal","Cream","Navy Blue","Slate Grey","Maroon","Pink Rose","Light Blue"] },
 ];
 
-/* Photo cover substrates (+$75 flat) */
+/* Photo cover substrates (+$75 flat for main album only) */
 const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
 const PHOTO_COVER_PRICE = 75;
 
@@ -96,14 +96,12 @@ export default function AlbumDemo() {
   const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
 
-  /* cover state (unified) */
-  // coverMode is one of base category keys (varies per album type) or 'photo' or 'metalacrylic'
+  /* cover state (for main album) */
   const defaultCoverMode = COVER_SET[albumType].baseCategories[0].key;
   const [coverMode, setCoverMode] = useState(defaultCoverMode);
-
   const [coverSwatch, setCoverSwatch] = useState(null); // for base materials
 
-  // photo cover fields
+  // photo cover fields (main)
   const [photoSubstrate, setPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
   const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]);
   const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
@@ -111,12 +109,19 @@ export default function AlbumDemo() {
   // metal/acrylic fields (Signature only)
   const [maType, setMaType] = useState("metal");
   const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
-  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // reuse Signature categories for binding
+  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // Signature categories for binding
   const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
-  /* parent albums (unchanged for now) */
+  /* parent albums */
   const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
+
+  // Parent album cover (uses ARTISAN set)
+  const [parentCoverMode, setParentCoverMode] = useState(ARTISAN_BASE_CATEGORIES[0].key);
+  const [parentCoverSwatch, setParentCoverSwatch] = useState(null);
+  const [parentPhotoSubstrate, setParentPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
+  const [parentPhotoImageNums, setParentPhotoImageNums] = useState(["", "", "", ""]);
+  const parentEnteredPhotoNums = parentPhotoImageNums.map(s => s.trim()).filter(Boolean);
 
   /* coupon demo */
   const [couponCode, setCouponCode] = useState("");
@@ -160,7 +165,7 @@ export default function AlbumDemo() {
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
-  /* resolve current cover set */
+  /* resolve current cover set for main album */
   const currentSet = COVER_SET[albumType];
   const baseCategory = currentSet.baseCategories.find(c => c.key === coverMode);
 
@@ -355,7 +360,7 @@ export default function AlbumDemo() {
 
               {/* binding category tabs */}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                {SIGNATURE_BASE_CATEGORIES.filter(c => c.key !== "vegan").map(cat => ( // if you want to allow Vegan as binding, remove filter
+                {SIGNATURE_BASE_CATEGORIES.filter(c => c.key !== "vegan").map(cat => (
                   <Tab
                     key={cat.key}
                     active={maBindingCategory === cat.key}
@@ -390,7 +395,7 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 4) Parent Albums (placeholder – we’ll add cover/engraving next) */}
+      {/* 4) Parent Albums */}
       <Section title="4) Parent Albums (optional)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label>
@@ -407,9 +412,99 @@ export default function AlbumDemo() {
           </label>
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
         </div>
-        <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
-          (Next: we’ll let you pick Parent Album covers — they’ll reuse the Artisan cover options.)
-        </div>
+
+        {/* Parent Album Cover Picker (only shows when qty > 0) */}
+        {Number(parentQty) > 0 && (
+          <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+            <div style={{ fontSize: 13, marginBottom: 6 }}>
+              Parent Album Cover — same options as Artisan Flush (cover included)
+            </div>
+
+            {/* tabs: Artisan base categories + Photo (no extra cost) */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              {ARTISAN_BASE_CATEGORIES.map(cat => (
+                <Tab
+                  key={cat.key}
+                  active={parentCoverMode === cat.key}
+                  onClick={() => { setParentCoverMode(cat.key); setParentCoverSwatch(null); }}
+                >
+                  {cat.label}
+                </Tab>
+              ))}
+              <Tab
+                active={parentCoverMode === "photo"}
+                onClick={() => setParentCoverMode("photo")}
+              >
+                Photo (included)
+              </Tab>
+            </div>
+
+            {/* Base swatch grid */}
+            {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode) && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+                  {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.options.map(name => (
+                    <div
+                      key={name}
+                      onClick={() => setParentCoverSwatch(name)}
+                      style={{
+                        cursor: "pointer",
+                        border: parentCoverSwatch === name ? "2px solid #2563eb" : "1px solid #d1d5db",
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        background: "white",
+                      }}
+                    >
+                      <div style={{ height: 70, background: "#f3f4f6" }} />
+                      <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {parentCoverSwatch && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+                    <small>Selected: <strong>{ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label} — {parentCoverSwatch}</strong></small>
+                  </motion.div>
+                )}
+              </>
+            )}
+
+            {/* Photo cover inputs (included) */}
+            {parentCoverMode === "photo" && (
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 13, marginRight: 8 }}>Photo substrate:</label>
+                  <select value={parentPhotoSubstrate} onChange={e => setParentPhotoSubstrate(e.target.value)}>
+                    {PHOTO_SUBSTRATES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                  <span style={{ marginLeft: 10, color: "#444" }}>(included)</span>
+                </div>
+
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                  {parentPhotoImageNums.map((val, idx) => (
+                    <div key={idx} style={{ display: "grid", gap: 6 }}>
+                      <label style={{ fontSize: 12, color: "#555" }}>Image #{idx + 1} (optional)</label>
+                      <input
+                        value={val}
+                        onChange={e => {
+                          const next = [...parentPhotoImageNums];
+                          next[idx] = e.target.value;
+                          setParentPhotoImageNums(next);
+                        }}
+                        placeholder="e.g., IMG_1234"
+                        style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
+                  Select up to 4 images. We’ll choose what works best within the margins, but you’ll get approval before sending to print.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* 5) Coupon (demo) */}
@@ -430,7 +525,7 @@ export default function AlbumDemo() {
         <div style={{ display: "grid", gap: 6, maxWidth: 560 }}>
           <Row label={`${ALBUMS[albumType].label} — ${ALBUMS[albumType].sizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
 
-          {/* Cover summary rows */}
+          {/* Main Cover summary */}
           {baseCategory && (
             <Row label={`Cover: ${baseCategory.label}${coverSwatch ? ` — ${coverSwatch}` : ""}`} value={"$0"} />
           )}
@@ -455,7 +550,25 @@ export default function AlbumDemo() {
             </>
           )}
 
+          {/* Parent Albums summary */}
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
+          {Number(parentQty) > 0 && (
+            <>
+              {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode) && (
+                <div style={{ fontSize: 14, color: "#444" }}>
+                  Parent Cover: {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label}
+                  {parentCoverSwatch ? ` — ${parentCoverSwatch}` : ""}
+                </div>
+              )}
+              {parentCoverMode === "photo" && (
+                <div style={{ fontSize: 14, color: "#444" }}>
+                  Parent Cover: Photo — Substrate: {parentPhotoSubstrate}
+                  {parentEnteredPhotoNums.length > 0 && <> — Images: {parentEnteredPhotoNums.join(", ")}</>}
+                </div>
+              )}
+            </>
+          )}
+
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
           <Row label="Total" value={`$${total}`} strong big />
@@ -481,8 +594,14 @@ export default function AlbumDemo() {
                     : coverMode === "photo"
                     ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
                     : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
-                parentType,
-                parentQty: Number(parentQty) || 0,
+                parent: {
+                  type: parentType,
+                  qty: Number(parentQty) || 0,
+                  cover:
+                    ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)
+                      ? { mode: parentCoverMode, category: ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label, swatch: parentCoverSwatch }
+                      : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums },
+                },
                 subtotal,
                 discount,
                 total,
@@ -568,5 +687,4 @@ const ghostBtn = {
   border: "1px solid #d1d5db",
   background: "white",
   color: "black",
-  cursor: "pointer",
 };
