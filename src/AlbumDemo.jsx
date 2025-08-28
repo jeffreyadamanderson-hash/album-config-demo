@@ -75,7 +75,7 @@ const METAL_ACRYLIC_TYPES = [
   { key: "metal", label: "Metal", finishes: ["Vivid Metal (high-gloss)", "Matte Metal (glare-reducing)", "Brushed Metal (textured)"] },
   { key: "acrylic", label: "Acrylic", finishes: ["Gloss Acrylic (high-gloss)", "Matte Acrylic (glare-reducing)"] },
 ];
-const BINDING_BACK = ["Leather", "Linen"]; // for Metal/Acrylic only
+// binding/back choices will reuse the same cover categories for swatches
 
 /* Helpers */
 function priceParentAlbums(typeKey, qty) {
@@ -108,7 +108,10 @@ export default function AlbumDemo() {
   /* metal/acrylic fields (used when mode === 'metalacrylic') */
   const [maType, setMaType] = useState("metal");
   const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
-  const [maBinding, setMaBinding] = useState(BINDING_BACK[0]);
+
+  // NEW: binding/back material selection: category tab + swatch
+  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // 'standard' | 'distressed' | 'vegan' | 'linen'
+  const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
   /* parent albums */
   const [parentType, setParentType] = useState("small");
@@ -143,6 +146,9 @@ export default function AlbumDemo() {
   /* current base category (for swatches) if using a base material mode */
   const baseCategory = COVER_CATEGORIES.find(c => c.key === coverMode);
 
+  /* derived current binding category for Metal/Acrylic */
+  const bindingCategoryObj = COVER_CATEGORIES.find(c => c.key === maBindingCategory);
+
   /* when switching cover mode, clear incompatible fields */
   function switchCoverMode(nextMode) {
     setCoverMode(nextMode);
@@ -155,9 +161,16 @@ export default function AlbumDemo() {
     if (nextMode !== "metalacrylic") {
       setMaType("metal");
       setMaFinish(METAL_ACRYLIC_TYPES[0].finishes[0]);
-      setMaBinding(BINDING_BACK[0]);
+      setMaBindingCategory("standard");
+      setMaBindingSwatch(null);
     }
   }
+
+  // simple validation to prevent proceeding without a cover choice
+  const coverIsComplete =
+    (baseCategory && !!coverSwatch) ||
+    (coverMode === "photo") ||
+    (coverMode === "metalacrylic" && !!maBindingSwatch);
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -200,6 +213,10 @@ export default function AlbumDemo() {
 
       {/* 3) Pick Cover Material (unified choices) */}
       <Section title="3) Pick Cover Material">
+        <div style={{ marginBottom: 6, color: "#666", fontSize: 13 }}>
+          Choose one cover option.
+        </div>
+
         {/* tabs */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           {/* Base materials */}
@@ -210,14 +227,13 @@ export default function AlbumDemo() {
           ))}
           {/* Upgraded materials presented inline */}
           <Tab active={coverMode === "photo"} onClick={() => switchCoverMode("photo")}>
-            Photo {coverMode === "photo" ? "(+$75)" : ""}
+            Photo ( +${PHOTO_COVER_PRICE} )
           </Tab>
           <Tab active={coverMode === "metalacrylic"} onClick={() => switchCoverMode("metalacrylic")}>
-            Metal/Acrylic {coverMode === "metalacrylic" ? "(+$200)" : ""}
+            Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
           </Tab>
         </div>
 
-        {/* Content area switches by coverMode */}
         {/* A) Base material: show swatch grid */}
         {baseCategory && (
           <>
@@ -234,7 +250,6 @@ export default function AlbumDemo() {
                     background: "white",
                   }}
                 >
-                  {/* neutral tile; swap with real swatch <img> later */}
                   <div style={{ height: 70, background: "#f3f4f6" }} />
                   <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
                 </div>
@@ -314,13 +329,52 @@ export default function AlbumDemo() {
               </select>
             </div>
 
-            <div>
-              <label style={{ fontSize: 13, marginRight: 8 }}>Binding & back material:</label>
-              <select value={maBinding} onChange={e => setMaBinding(e.target.value)}>
-                {BINDING_BACK.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-              <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
-                (Metal/Acrylic cover pairs with your choice of Leather or Linen for the spine & back.)
+            {/* NEW: Binding & Back selection with category tabs + swatch grid */}
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 13, marginBottom: 6 }}>Binding & back material:</div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                {["standard","distressed","vegan","linen"].map(key => {
+                  const label = COVER_CATEGORIES.find(c => c.key === key)?.label || key;
+                  return (
+                    <Tab
+                      key={key}
+                      active={maBindingCategory === key}
+                      onClick={() => { setMaBindingCategory(key); setMaBindingSwatch(null); }}
+                    >
+                      {label}
+                    </Tab>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+                {bindingCategoryObj?.options.map(name => (
+                  <div
+                    key={name}
+                    onClick={() => setMaBindingSwatch(name)}
+                    style={{
+                      cursor: "pointer",
+                      border: maBindingSwatch === name ? "2px solid #2563eb" : "1px solid #d1d5db",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      background: "white",
+                    }}
+                  >
+                    <div style={{ height: 70, background: "#f3f4f6" }} />
+                    <div style={{ padding: 10, textAlign: "center", fontSize: 14 }}>{name}</div>
+                  </div>
+                ))}
+              </div>
+
+              {maBindingSwatch && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 10 }}>
+                  <small>Selected binding/back: <strong>{COVER_CATEGORIES.find(c => c.key === maBindingCategory)?.label} — {maBindingSwatch}</strong></small>
+                </motion.div>
+              )}
+
+              <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                (Metal/Acrylic cover pairs with your chosen Leather or Linen for the spine & back.)
               </div>
             </div>
           </div>
@@ -381,7 +435,10 @@ export default function AlbumDemo() {
             <>
               <Row label="Cover: Metal/Acrylic" value={`+$${METAL_ACRYLIC_PRICE}`} />
               <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
-                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish} — Binding/Back: {maBinding}
+                {METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish}
+              </div>
+              <div style={{ fontSize: 14, color: "#444" }}>
+                Binding/Back: {COVER_CATEGORIES.find(c => c.key === maBindingCategory)?.label}{maBindingSwatch ? ` — ${maBindingSwatch}` : ""}
               </div>
             </>
           )}
@@ -394,8 +451,9 @@ export default function AlbumDemo() {
 
         <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
-            style={primaryBtn}
+            style={{ ...primaryBtn, opacity: coverIsComplete ? 1 : 0.6, pointerEvents: coverIsComplete ? "auto" : "none" }}
             onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
+            title={coverIsComplete ? "Continue to Checkout (coming next)" : "Please complete your cover selection first"}
           >
             Continue to Checkout (coming next)
           </button>
@@ -409,7 +467,7 @@ export default function AlbumDemo() {
                   ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
                   : coverMode === "photo"
                   ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
-                  : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, binding: maBinding },
+                  : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
                 parentType,
                 parentQty: Number(parentQty) || 0,
                 subtotal,
