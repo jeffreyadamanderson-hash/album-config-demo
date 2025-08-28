@@ -41,7 +41,7 @@ const PARENT_ALBUMS = {
    COVER SETS (by album type)
 ------------------------------ */
 
-/* Signature swatches (from earlier) */
+/* Signature swatches */
 const SIGNATURE_BASE_CATEGORIES = [
   { key: "standard",   label: "Standard Leather", options: ["Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender","Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn","Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut"] },
   { key: "distressed", label: "Distressed Leather", options: ["Cream","Ore","Pebble","Sierra"] },
@@ -49,7 +49,7 @@ const SIGNATURE_BASE_CATEGORIES = [
   { key: "linen",      label: "Linen", options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"] },
 ];
 
-/* Artisan swatches (from your list) */
+/* Artisan swatches */
 const ARTISAN_BASE_CATEGORIES = [
   { key: "modern",  label: "Modern Genuine Leather",  options: ["Black","Dark Brown","Espresso","Navy Blue","Charcoal","Blue Grey","Distressed Navy Blue","Distressed Dark Green","Distressed Cinnamon","Distressed Caramel","Ivory","White"] },
   { key: "classic", label: "Classic Genuine Leather", options: ["Black","Navy Blue","Dark Brown","Blue Grey","White","Beige"] },
@@ -57,7 +57,7 @@ const ARTISAN_BASE_CATEGORIES = [
   { key: "linen",   label: "Linen", options: ["Burgundy","Midnight Blue","Black","Dark Chocolate","Forest Green","Dark Hunter Green","Coffee","Steel Blue","Tortilla Brown","Concrete Grey","Petal Pink","Buttermilk","Teal","Stone Blue","Walnut","Dove Grey","Wheat","Sand","Green Tea","Oatmeal","Cream","Navy Blue","Slate Grey","Maroon","Pink Rose","Light Blue"] },
 ];
 
-/* Photo cover substrates (+$75 flat for main album only) */
+/* Photo cover substrates (+$75 main album; included for parent) */
 const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
 const PHOTO_COVER_PRICE = 75;
 
@@ -78,7 +78,7 @@ const COVER_SET = {
   artisan: {
     baseCategories: ARTISAN_BASE_CATEGORIES,
     allowPhoto: true,
-    allowMetalAcrylic: false, // no Metal/Acrylic for Artisan
+    allowMetalAcrylic: false,
   },
 };
 
@@ -96,27 +96,27 @@ export default function AlbumDemo() {
   const [albumType, setAlbumType] = useState("signature");
   const [albumSizeKey, setAlbumSizeKey] = useState(ALBUMS.signature.sizes[0].key);
 
-  /* cover state (for main album) */
+  /* cover state (main album) */
   const defaultCoverMode = COVER_SET[albumType].baseCategories[0].key;
   const [coverMode, setCoverMode] = useState(defaultCoverMode);
-  const [coverSwatch, setCoverSwatch] = useState(null); // for base materials
+  const [coverSwatch, setCoverSwatch] = useState(null);
 
-  // photo cover fields (main)
+  // photo fields (main)
   const [photoSubstrate, setPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
   const [photoImageNums, setPhotoImageNums] = useState(["", "", "", ""]);
   const enteredPhotoNums = photoImageNums.map(s => s.trim()).filter(Boolean);
 
-  // metal/acrylic fields (Signature only)
+  // metal/acrylic (Signature only)
   const [maType, setMaType] = useState("metal");
   const [maFinish, setMaFinish] = useState(METAL_ACRYLIC_TYPES[0].finishes[0]);
-  const [maBindingCategory, setMaBindingCategory] = useState("standard"); // Signature categories for binding
+  const [maBindingCategory, setMaBindingCategory] = useState("standard");
   const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
   /* parent albums */
   const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
 
-  // Parent album cover (uses ARTISAN set)
+  // parent cover (independent; uses ARTISAN set always)
   const [parentCoverMode, setParentCoverMode] = useState(ARTISAN_BASE_CATEGORIES[0].key);
   const [parentCoverSwatch, setParentCoverSwatch] = useState(null);
   const [parentPhotoSubstrate, setParentPhotoSubstrate] = useState(PHOTO_SUBSTRATES[0]);
@@ -126,17 +126,17 @@ export default function AlbumDemo() {
   /* coupon demo */
   const [couponCode, setCouponCode] = useState("");
 
-  /* recompute when albumType switches */
+  /* when album type switches */
   function onChangeAlbumType(nextType) {
     setAlbumType(nextType);
     setAlbumSizeKey(ALBUMS[nextType].sizes[0].key);
 
-    // reset cover UI to that album's first base category
+    // reset main cover to first category for that album
     const firstKey = COVER_SET[nextType].baseCategories[0].key;
     setCoverMode(firstKey);
     setCoverSwatch(null);
 
-    // reset upgrade-specific state
+    // reset upgrades
     setPhotoSubstrate(PHOTO_SUBSTRATES[0]);
     setPhotoImageNums(["", "", "", ""]);
     setMaType("metal");
@@ -165,14 +165,23 @@ export default function AlbumDemo() {
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
   const total = Math.max(0, subtotal - discount);
 
-  /* resolve current cover set for main album */
+  /* current cover set for main album */
   const currentSet = COVER_SET[albumType];
   const baseCategory = currentSet.baseCategories.find(c => c.key === coverMode);
 
-  const coverIsComplete =
+  /* validation */
+  const mainCoverIsComplete =
     (baseCategory && !!coverSwatch) ||
     (coverMode === "photo") ||
     (coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && !!maBindingSwatch);
+
+  const parentCoverCategoryObj = ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode);
+  const parentCoverIsComplete =
+    Number(parentQty) === 0 ||
+    (!!parentCoverCategoryObj && !!parentCoverSwatch) ||
+    (parentCoverMode === "photo"); // photo doesn't need a swatch
+
+  const canCheckout = mainCoverIsComplete && parentCoverIsComplete;
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -228,7 +237,7 @@ export default function AlbumDemo() {
             </Tab>
           ))}
 
-          {/* Photo tab if allowed */}
+        {/* Photo tab if allowed */}
           {currentSet.allowPhoto && (
             <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
               Photo ( +${PHOTO_COVER_PRICE} )
@@ -338,7 +347,7 @@ export default function AlbumDemo() {
               </select>
             </div>
 
-            {/* Binding & Back selection (Signature binding uses Signature categories) */}
+            {/* Binding & Back selection */}
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 13, marginBottom: 6 }}>
                 Binding & back material — please pick a material and color
@@ -413,14 +422,14 @@ export default function AlbumDemo() {
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
         </div>
 
-        {/* Parent Album Cover Picker (only shows when qty > 0) */}
+        {/* Parent Album Cover Picker (shows when qty > 0) */}
         {Number(parentQty) > 0 && (
           <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ fontSize: 13, marginBottom: 6 }}>
-              Parent Album Cover — same options as Artisan Flush (cover included)
+              Parent Album Cover — please pick a material and color (same options as Artisan; included)
             </div>
 
-            {/* tabs: Artisan base categories + Photo (no extra cost) */}
+            {/* tabs: Artisan base categories + Photo (included) */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               {ARTISAN_BASE_CATEGORIES.map(cat => (
                 <Tab
@@ -505,6 +514,13 @@ export default function AlbumDemo() {
             )}
           </div>
         )}
+
+        {/* Helpful hint if qty > 0 but no cover yet */}
+        {Number(parentQty) > 0 && !parentCoverIsComplete && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#b45309" }}>
+            Please select a Parent Album cover (pick a swatch or choose Photo).
+          </div>
+        )}
       </Section>
 
       {/* 5) Coupon (demo) */}
@@ -576,9 +592,9 @@ export default function AlbumDemo() {
 
         <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
-            style={{ ...primaryBtn, opacity: coverIsComplete ? 1 : 0.6, pointerEvents: coverIsComplete ? "auto" : "none" }}
+            style={{ ...primaryBtn, opacity: canCheckout ? 1 : 0.6, pointerEvents: canCheckout ? "auto" : "none" }}
             onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
-            title={coverIsComplete ? "Continue to Checkout (coming next)" : "Please complete your cover selection first"}
+            title={canCheckout ? "Continue to Checkout (coming next)" : "Please complete the cover selections first"}
           >
             Continue to Checkout (coming next)
           </button>
