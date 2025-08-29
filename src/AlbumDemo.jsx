@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 /* -----------------------------
    VERSION (for cache sanity)
 ------------------------------ */
-const VERSION = "build-engraving-1";
+const VERSION = "build-engraving-rules-1";
 
 /* -----------------------------
    PRODUCTS & PRICING
@@ -45,6 +45,8 @@ const PARENT_ALBUMS = {
 /* -----------------------------
    COVER SETS (by album type)
 ------------------------------ */
+
+/* Signature swatches */
 const SIGNATURE_BASE_CATEGORIES = [
   { key: "standard",   label: "Standard Leather", options: ["Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender","Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn","Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut"] },
   { key: "distressed", label: "Distressed Leather", options: ["Cream","Ore","Pebble","Sierra"] },
@@ -52,6 +54,7 @@ const SIGNATURE_BASE_CATEGORIES = [
   { key: "linen",      label: "Linen", options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"] },
 ];
 
+/* Artisan swatches */
 const ARTISAN_BASE_CATEGORIES = [
   { key: "modern",  label: "Modern Genuine Leather",  options: ["Black","Dark Brown","Espresso","Navy Blue","Charcoal","Blue Grey","Distressed Navy Blue","Distressed Dark Green","Distressed Cinnamon","Distressed Caramel","Ivory","White"] },
   { key: "classic", label: "Classic Genuine Leather", options: ["Black","Navy Blue","Dark Brown","Blue Grey","White","Beige"] },
@@ -86,51 +89,66 @@ const COVER_SET = {
 };
 
 /* -----------------------------
-   ENGRAVING (structure now; fill lists/rules later)
+   ENGRAVING (from your PDF)
 ------------------------------ */
-const ENGRAVING_LINE_MAX = 25;
+const ENGRAVING_LIMITS = {
+  deboss: { maxChars: 25, maxLines: 2 },
+  foil:   { maxChars: 28, maxLines: 2 },
+};
 
-// TODO: replace these placeholders with your exact lists from the PDF
-const ENGRAVING_FONTS = [
-  "Serif (placeholder)",
-  "Sans (placeholder)",
-  "Script (placeholder)",
+// Fonts
+const DEBOSS_FONTS = [
+  "Baskerville",
+  "Coco Gothic",
+  "Dessau Pro",
+  "Eye Catching",
+  "Garage Gothic",
+];
+const FOIL_FONTS = [
+  "Alana Pro",
+  "Garage Gothic",
 ];
 
+// Colors
+const DEBOSS_COLORS_ALL = [
+  "Blind (no color)",
+  "Black",
+  "Copper",
+  "Gold",
+  "Matte Gold",
+  "Granite",
+  "Silver",
+  "Matte Silver",
+  "White",
+];
 const FOIL_COLORS = [
-  "Gold (placeholder)",
-  "Silver (placeholder)",
-  "Copper (placeholder)",
-  "Matte Gold (placeholder)",
-  "Matte Silver (placeholder)",
-  "Black (placeholder)",
-  "White (placeholder)",
+  "Black",
+  "Copper",
+  "Gold",
+  "Matte Gold",
+  "Granite",
+  "Silver",
+  "Matte Silver",
+  "White",
 ];
 
-const DEBOSS_COLORS = [
-  "Blind (no color) (placeholder)",
-  "Gold (placeholder)",
-  "Silver (placeholder)",
-  "Copper (placeholder)",
-  "Black (placeholder)",
-  "White (placeholder)",
-];
+// Material rule helpers
+function isDistressed(label) {
+  return /Distressed/i.test(label || "");
+}
+function isLinen(label) {
+  return /Linen/i.test(label || "");
+}
+function isStandard(label) {
+  return /Standard Leather/i.test(label || "");
+}
+function isVegan(label) {
+  return /Vegan Leather/i.test(label || "");
+}
 
-/* Rules engine placeholder:
-   In the future we can enforce:
-   - Not available on Linen
-   - Distressed → Blind only, etc.
-   For now, we simply display helper notes and allow all choices.
-*/
-function engravingHelperNote({ albumType, coverMode, baseCategoryLabel, coverSwatch, method }) {
-  // Example notes you might want later (currently informational only):
-  const notes = [];
-  // if (baseCategoryLabel?.includes("Linen")) notes.push("Linen may limit certain foil/deboss colors.");
-  // if (baseCategoryLabel?.includes("Distressed") && method === "deboss") notes.push("Distressed often supports Blind debossing only.");
-  if (!coverSwatch && coverMode !== "photo" && coverMode !== "metalacrylic") {
-    notes.push("Tip: choose your cover swatch first so we can validate engraving for that material.");
-  }
-  return notes.join(" ");
+/* Special chars rule for Foil: allow A–Z a–z 0–9 spaces and basic punctuation (.,-'&) */
+function sanitizeFoilText(s) {
+  return s.replace(/[^A-Za-z0-9\s\.\-,'&]/g, "");
 }
 
 /* -----------------------------
@@ -177,13 +195,14 @@ export default function AlbumDemo() {
   const [maBindingCategory, setMaBindingCategory] = useState("standard");
   const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
-  /* --- NEW: Engraving --- */
+  /* --- Engraving --- */
   const [engravingEnabled, setEngravingEnabled] = useState(false);
   const [engravingMethod, setEngravingMethod] = useState("foil"); // "foil" | "deboss"
-  const [engravingFont, setEngravingFont] = useState(ENGRAVING_FONTS[0]);
+  const [engravingFont, setEngravingFont] = useState(FOIL_FONTS[0]);
   const [engravingColor, setEngravingColor] = useState(FOIL_COLORS[0]);
   const [engravingLine1, setEngravingLine1] = useState("");
   const [engravingLine2, setEngravingLine2] = useState("");
+  const [engravingPlacement, setEngravingPlacement] = useState("front-lower-center");
 
   /* parent albums */
   const [parentType, setParentType] = useState("small");
@@ -224,10 +243,11 @@ export default function AlbumDemo() {
     // reset engraving
     setEngravingEnabled(false);
     setEngravingMethod("foil");
-    setEngravingFont(ENGRAVING_FONTS[0]);
+    setEngravingFont(FOIL_FONTS[0]);
     setEngravingColor(FOIL_COLORS[0]);
     setEngravingLine1("");
     setEngravingLine2("");
+    setEngravingPlacement("front-lower-center");
 
     // reset other
     setPageThickness(PAGE_THICKNESS_OPTIONS[0].key);
@@ -250,9 +270,10 @@ export default function AlbumDemo() {
   const parentPhotoCoverUpcharge = useMemo(() => {
     const qty = Number(parentQty) || 0;
     return parentCoverMode === "photo" ? qty * PARENT_PHOTO_COVER_PRICE : 0;
+    // Note: This applies only to parent albums' Photo cover.
   }, [parentCoverMode, parentQty]);
 
-  // Engraving price (currently included = $0)
+  // Engraving price (included = $0)
   const engravingPrice = 0;
 
   // Gilding upcharge (flat $75)
@@ -293,21 +314,61 @@ export default function AlbumDemo() {
     (!!parentCoverCategoryObj && !!parentCoverSwatch) ||
     (parentCoverMode === "photo"); // photo doesn't need a swatch
 
-  const canCheckout = mainCoverIsComplete && parentCoverIsComplete;
+  /* ----- Engraving availability rules ----- */
+  const isCoverPhotoOrMA = coverMode === "photo" || coverMode === "metalacrylic";
+  const foilAllowedOnThisMaterial =
+    !!baseCategoryLabel && (isStandard(baseCategoryLabel) || isVegan(baseCategoryLabel));
+  const debossAllowedOnThisMaterial =
+    !!baseCategoryLabel && (isStandard(baseCategoryLabel) || isVegan(baseCategoryLabel) || isLinen(baseCategoryLabel) || isDistressed(baseCategoryLabel));
+
+  // Distressed + Debossing ⇒ Blind only
+  const debossColorsForMaterial = isDistressed(baseCategoryLabel)
+    ? ["Blind (no color)"]
+    : DEBOSS_COLORS_ALL;
+
+  // Method actually allowed?
+  const engravingMethodAllowed =
+    engravingMethod === "foil" ? foilAllowedOnThisMaterial : debossAllowedOnThisMaterial;
+
+  // If engraving is enabled, we’ll require that it’s valid for chosen material
+  const engravingIsValid =
+    !engravingEnabled
+      ? true
+      : !isCoverPhotoOrMA &&
+        (engravingMethod === "foil" ? foilAllowedOnThisMaterial : debossAllowedOnThisMaterial) &&
+        (!!coverSwatch || coverMode === "photo" || coverMode === "metalacrylic" ? !isCoverPhotoOrMA : true);
+
+  /* Combine for overall checkout enablement */
+  const canCheckout = mainCoverIsComplete && parentCoverIsComplete && engravingIsValid;
 
   /* engraving dynamic lists */
-  const engravingColorsList = engravingMethod === "foil" ? FOIL_COLORS : DEBOSS_COLORS;
+  const engravingFonts = engravingMethod === "foil" ? FOIL_FONTS : DEBOSS_FONTS;
+  const engravingColorsList = engravingMethod === "foil" ? FOIL_COLORS : debossColorsForMaterial;
 
-  const engravingNotes = engravingHelperNote({
-    albumType,
-    coverMode,
-    baseCategoryLabel,
-    coverSwatch,
-    method: engravingMethod,
-  });
-
+  /* character limits */
+  const limits = ENGRAVING_LIMITS[engravingMethod];
   const line1Count = engravingLine1.length;
   const line2Count = engravingLine2.length;
+
+  /* sanitize Foil lines (no special characters) */
+  function onChangeEngravingLine(which, val) {
+    let v = val;
+    if (engravingMethod === "foil") v = sanitizeFoilText(v);
+    v = v.slice(0, limits.maxChars);
+    if (which === 1) setEngravingLine1(v);
+    else setEngravingLine2(v);
+  }
+
+  /* placements */
+  const FOIL_PLACEMENTS = [
+    { key: "front-lower-center", label: "Front — Lower Center" },
+    { key: "front-lower-right",  label: "Front — Lower Right" },
+    { key: "inside-back-lower-center", label: "Inside Back — Lower Center" },
+  ];
+  const DEBOSS_PLACEMENTS = [
+    { key: "front-center", label: "Front — Center" },
+  ];
+  const placementOptions = engravingMethod === "foil" ? FOIL_PLACEMENTS : DEBOSS_PLACEMENTS;
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -363,17 +424,17 @@ export default function AlbumDemo() {
             </Tab>
           ))}
 
-        {currentSet.allowPhoto && (
-          <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
-            Photo ( +${PHOTO_COVER_PRICE} )
-          </Tab>
-        )}
+          {currentSet.allowPhoto && (
+            <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
+              Photo ( +${PHOTO_COVER_PRICE} )
+            </Tab>
+          )}
 
-        {currentSet.allowMetalAcrylic && (
-          <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
-            Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
-          </Tab>
-        )}
+          {currentSet.allowMetalAcrylic && (
+            <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
+              Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
+            </Tab>
+          )}
         </div>
 
         {/* Base material swatches */}
@@ -524,13 +585,21 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 4) Engraving (NEW) */}
+      {/* 4) Engraving */}
       <Section title="4) Engraving (optional)">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        {/* Disabled message for Photo/Metal-Acrylic */}
+        {isCoverPhotoOrMA && (
+          <div style={{ fontSize: 13, color: "#b45309", marginBottom: 8 }}>
+            Engraving isn’t available on Photo or Metal/Acrylic covers. Please choose a Leather or Linen cover to add engraving.
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, opacity: isCoverPhotoOrMA ? 0.5 : 1 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: isCoverPhotoOrMA ? "not-allowed" : "pointer" }}>
             <input
               type="checkbox"
-              checked={engravingEnabled}
+              checked={engravingEnabled && !isCoverPhotoOrMA}
+              disabled={isCoverPhotoOrMA}
               onChange={(e) => setEngravingEnabled(e.target.checked)}
             />
             <span>Add Engraving</span>
@@ -538,7 +607,7 @@ export default function AlbumDemo() {
           </label>
         </div>
 
-        {engravingEnabled && (
+        {engravingEnabled && !isCoverPhotoOrMA && (
           <div style={{ display: "grid", gap: 12 }}>
             {/* Method */}
             <div>
@@ -548,29 +617,68 @@ export default function AlbumDemo() {
                 onChange={(e) => {
                   const method = e.target.value;
                   setEngravingMethod(method);
-                  // swap the color list to the first item of the new list
-                  setEngravingColor((method === "foil" ? FOIL_COLORS : DEBOSS_COLORS)[0]);
+                  // reset font/color to first options for the chosen method
+                  setEngravingFont(method === "foil" ? FOIL_FONTS[0] : DEBOSS_FONTS[0]);
+                  setEngravingColor(method === "foil" ? FOIL_COLORS[0] : (isDistressed(baseCategoryLabel) ? "Blind (no color)" : DEBOSS_COLORS_ALL[0]));
+                  // reset placement
+                  setEngravingPlacement(method === "foil" ? "front-lower-center" : "front-center");
                 }}
               >
-                <option value="foil">Foil Stamping</option>
-                <option value="deboss">Standard Debossing</option>
+                <option value="foil" disabled={!foilAllowedOnThisMaterial}>Foil Stamping</option>
+                <option value="deboss" disabled={!debossAllowedOnThisMaterial}>Standard Debossing</option>
               </select>
+              {!engravingMethodAllowed && (
+                <div style={{ fontSize: 12, color: "#b45309", marginTop: 4 }}>
+                  {engravingMethod === "foil"
+                    ? "Foil Stamping is only available on Standard Leather or Vegan Leather."
+                    : "Debossing is available on Standard, Distressed, Linen, and Vegan materials."}
+                </div>
+              )}
             </div>
 
             {/* Font */}
             <div>
               <label style={{ fontSize: 13, marginRight: 8 }}>Font:</label>
               <select value={engravingFont} onChange={(e) => setEngravingFont(e.target.value)}>
-                {ENGRAVING_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                {engravingFonts.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
 
             {/* Color */}
             <div>
               <label style={{ fontSize: 13, marginRight: 8 }}>Color:</label>
-              <select value={engravingColor} onChange={(e) => setEngravingColor(e.target.value)}>
-                {engravingColorsList.map(c => <option key={c} value={c}>{c}</option>)}
+              <select
+                value={engravingColor}
+                onChange={(e) => setEngravingColor(e.target.value)}
+              >
+                {(engravingColorsList).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              {engravingMethod === "deboss" && isDistressed(baseCategoryLabel) && (
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                  Distressed Leather supports <strong>Blind (no color)</strong> debossing only.
+                </div>
+              )}
+            </div>
+
+            {/* Placement */}
+            <div>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Placement:</label>
+              <select
+                value={engravingPlacement}
+                onChange={(e) => setEngravingPlacement(e.target.value)}
+              >
+                {placementOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+              {engravingMethod === "foil" && (
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                  Foil may be placed at Front Lower Center, Front Lower Right, or Inside Back Lower Center.
+                </div>
+              )}
+              {engravingMethod === "deboss" && (
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                  Debossing is placed at the Front Center.
+                </div>
+              )}
             </div>
 
             {/* Lines */}
@@ -579,34 +687,34 @@ export default function AlbumDemo() {
                 <label style={{ fontSize: 12, color: "#555" }}>Line 1</label>
                 <input
                   value={engravingLine1}
-                  onChange={(e) => setEngravingLine1(e.target.value.slice(0, ENGRAVING_LINE_MAX))}
-                  placeholder="e.g., Elizabeth & Michael"
+                  onChange={(e) => onChangeEngravingLine(1, e.target.value)}
+                  placeholder={engravingMethod === "foil" ? "e.g., Elizabeth & Michael" : "e.g., Elizabeth & Michael"}
                   style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: "100%" }}
                 />
                 <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                  {line1Count}/{ENGRAVING_LINE_MAX} characters
+                  {line1Count}/{limits.maxChars} characters{engravingMethod === "foil" ? " • letters/numbers only" : ""}
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 12, color: "#555" }}>Line 2 (optional)</label>
                 <input
                   value={engravingLine2}
-                  onChange={(e) => setEngravingLine2(e.target.value.slice(0, ENGRAVING_LINE_MAX))}
-                  placeholder="e.g., September 21, 2025"
+                  onChange={(e) => onChangeEngravingLine(2, e.target.value)}
+                  placeholder={engravingMethod === "foil" ? "e.g., September 21, 2025" : "e.g., September 21, 2025"}
                   style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: "100%" }}
                 />
                 <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                  {line2Count}/{ENGRAVING_LINE_MAX} characters
+                  {line2Count}/{limits.maxChars} characters{engravingMethod === "foil" ? " • letters/numbers only" : ""}
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Helper / Rules note (non-blocking for now) */}
-            {engravingNotes && (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>
-                {engravingNotes}
-              </div>
-            )}
+        {/* If engraving is enabled but invalid for material */}
+        {engravingEnabled && !engravingIsValid && !isCoverPhotoOrMA && (
+          <div style={{ fontSize: 12, color: "#b45309", marginTop: 8 }}>
+            Please adjust your engraving method or cover material to proceed.
           </div>
         )}
       </Section>
@@ -629,12 +737,14 @@ export default function AlbumDemo() {
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
         </div>
 
+        {/* Parent Album Cover Picker (shows when qty > 0) */}
         {Number(parentQty) > 0 && (
           <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               Parent Album Cover — please pick a material and color (same options as Artisan)
             </div>
 
+            {/* tabs: Artisan base categories + Photo ( +$75 each ) */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               {ARTISAN_BASE_CATEGORIES.map(cat => (
                 <Tab
@@ -653,6 +763,7 @@ export default function AlbumDemo() {
               </Tab>
             </div>
 
+            {/* Base swatch grid */}
             {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode) && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
@@ -682,6 +793,7 @@ export default function AlbumDemo() {
               </>
             )}
 
+            {/* Photo cover inputs ( +$75 each ) */}
             {parentCoverMode === "photo" && (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
                 <div style={{ marginBottom: 10 }}>
@@ -718,6 +830,7 @@ export default function AlbumDemo() {
           </div>
         )}
 
+        {/* Helpful hint if qty > 0 but no cover yet */}
         {Number(parentQty) > 0 && !parentCoverIsComplete && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#b45309" }}>
             Please select a Parent Album cover (pick a swatch or choose Photo).
@@ -810,15 +923,22 @@ export default function AlbumDemo() {
           )}
 
           {/* Engraving summary */}
-          {engravingEnabled && (
+          {engravingEnabled && !isCoverPhotoOrMA && (
             <>
               <Row label={`Engraving: ${engravingMethod === "foil" ? "Foil Stamping" : "Standard Debossing"}`} value={"$0"} />
               <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
-                Font: {engravingFont} — Color: {engravingColor}
+                Font: {engravingFont} — Color: {engravingColor} — Placement: { (engravingMethod === "foil"
+                  ? FOIL_PLACEMENTS.find(p => p.key === engravingPlacement)?.label
+                  : DEBOSS_PLACEMENTS.find(p => p.key === engravingPlacement)?.label) || "—" }
               </div>
               {(engravingLine1 || engravingLine2) && (
                 <div style={{ fontSize: 14, color: "#444" }}>
                   Text: {[engravingLine1, engravingLine2].filter(Boolean).join(" / ")}
+                </div>
+              )}
+              {!engravingIsValid && (
+                <div style={{ fontSize: 12, color: "#b45309" }}>
+                  Please adjust your engraving method or cover material.
                 </div>
               )}
             </>
@@ -851,7 +971,7 @@ export default function AlbumDemo() {
 
           {/* Upgrades summary */}
           {albumType === "signature" && (
-            <Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \\(\\+\\$TBD\\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />
+            <Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \(\+\$TBD\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />
           )}
           {addGilding && <Row label="Gilding" value={`+$${GILDING_UPCHARGE}`} />}
 
@@ -864,7 +984,7 @@ export default function AlbumDemo() {
           <button
             style={{ ...primaryBtn, opacity: canCheckout ? 1 : 0.6, pointerEvents: canCheckout ? "auto" : "none" }}
             onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
-            title={canCheckout ? "Continue to Checkout (coming next)" : "Please complete the cover selections first"}
+            title={canCheckout ? "Continue to Checkout (coming next)" : "Please complete the selections first"}
           >
             Continue to Checkout (coming next)
           </button>
@@ -880,13 +1000,14 @@ export default function AlbumDemo() {
                     : coverMode === "photo"
                     ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
                     : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
-                engraving: engravingEnabled ? {
+                engraving: engravingEnabled && !isCoverPhotoOrMA ? {
                   method: engravingMethod,
                   font: engravingFont,
                   color: engravingColor,
+                  placement: engravingPlacement,
                   line1: engravingLine1,
                   line2: engravingLine2,
-                  price: engravingPrice,
+                  price: 0,
                 } : null,
                 parent: {
                   type: parentType,
