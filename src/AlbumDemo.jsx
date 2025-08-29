@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 /* -----------------------------
    VERSION (for cache sanity)
 ------------------------------ */
-const VERSION = "build-PA-75-1";
+const VERSION = "build-upgrades-1";
 
 /* -----------------------------
    PRODUCTS & PRICING
@@ -88,7 +88,21 @@ const COVER_SET = {
   },
 };
 
-/* Helpers */
+/* -----------------------------
+   OTHER UPGRADES
+------------------------------ */
+const GILDING_PRICE = 75; // flat up to 15 spreads / 30 pages
+
+/* Page Thickness options (Signature only). Prices TBD (0 for now). */
+const PAGE_THICKNESS_OPTIONS = [
+  { key: "standard", label: "Standard (included)", price: 0 },
+  { key: "thick",    label: "Thick (+$TBD)",       price: 0 }, // update later
+  { key: "xthick",   label: "Extra Thick (+$TBD)", price: 0 }, // update later
+];
+
+/* -----------------------------
+   HELPERS
+------------------------------ */
 function priceParentAlbums(typeKey, qty) {
   if (!qty || qty <= 0) return 0;
   const tier = PARENT_ALBUMS[typeKey];
@@ -132,6 +146,10 @@ export default function AlbumDemo() {
   /* coupon demo */
   const [couponCode, setCouponCode] = useState("");
 
+  /* upgrades */
+  const [addGilding, setAddGilding] = useState(false);
+  const [pageThickness, setPageThickness] = useState(PAGE_THICKNESS_OPTIONS[0].key); // Signature only
+
   /* when album type switches */
   function onChangeAlbumType(nextType) {
     setAlbumType(nextType);
@@ -149,6 +167,10 @@ export default function AlbumDemo() {
     setMaFinish(METAL_ACRYLIC_TYPES[0].finishes[0]);
     setMaBindingCategory("standard");
     setMaBindingSwatch(null);
+
+    // page thickness resets when switching album type
+    setPageThickness(PAGE_THICKNESS_OPTIONS[0].key);
+    setAddGilding(false);
   }
 
   /* pricing */
@@ -169,10 +191,21 @@ export default function AlbumDemo() {
     return parentCoverMode === "photo" ? qty * PARENT_PHOTO_COVER_PRICE : 0;
   }, [parentCoverMode, parentQty]);
 
+  // Gilding upcharge (flat $75)
+  const gildingUpcharge = addGilding ? GILDING_PRICE : 0;
+
+  // Page thickness price (currently all 0s as placeholders)
+  const pageThicknessPrice = useMemo(() => {
+    const opt = PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness);
+    return opt?.price || 0;
+  }, [pageThickness]);
+
   const upgradesPrice =
     (coverMode === "photo" ? PHOTO_COVER_PRICE : 0) +
     (coverMode === "metalacrylic" && COVER_SET[albumType].allowMetalAcrylic ? METAL_ACRYLIC_PRICE : 0) +
-    parentPhotoCoverUpcharge;
+    parentPhotoCoverUpcharge +
+    gildingUpcharge +
+    pageThicknessPrice;
 
   const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
   const discount = couponCode.trim().toUpperCase() === "PREPAID400" ? Math.min(400, subtotal) : 0;
@@ -236,7 +269,7 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* 3) Pick Cover Material (dynamic by album type) */}
+      {/* 3) Pick Cover Material */}
       <Section title="3) Pick Cover Material">
         <div style={{ marginBottom: 6, color: "#666", fontSize: 13 }}>
           Choose one cover option.
@@ -244,21 +277,21 @@ export default function AlbumDemo() {
 
         {/* tabs */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          {/* Base categories (from the current album's cover set) */}
+          {/* Base categories */}
           {currentSet.baseCategories.map(cat => (
             <Tab key={cat.key} active={coverMode === cat.key} onClick={() => { setCoverMode(cat.key); setCoverSwatch(null); }}>
               {cat.label}
             </Tab>
           ))}
 
-          {/* Photo tab if allowed */}
+          {/* Photo */}
           {currentSet.allowPhoto && (
             <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
               Photo ( +${PHOTO_COVER_PRICE} )
             </Tab>
           )}
 
-          {/* Metal/Acrylic tab only for Signature */}
+          {/* Metal/Acrylic (Signature only) */}
           {currentSet.allowMetalAcrylic && (
             <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
               Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
@@ -266,7 +299,7 @@ export default function AlbumDemo() {
           )}
         </div>
 
-        {/* A) Base material swatch grid */}
+        {/* A) Base swatch grid */}
         {baseCategory && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
@@ -296,7 +329,7 @@ export default function AlbumDemo() {
           </>
         )}
 
-        {/* B) Photo Cover (if allowed) */}
+        {/* B) Photo Cover */}
         {coverMode === "photo" && currentSet.allowPhoto && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ marginBottom: 10 }}>
@@ -537,8 +570,51 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 5) Coupon (demo) */}
-      <Section title="5) Coupon (demo)">
+      {/* 5) Upgrades */}
+      <Section title="5) Upgrades">
+        {/* Page Thickness (Signature only) */}
+        {albumType === "signature" && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 8, fontWeight: 600 }}>Page Thickness (Signature only)</div>
+            <div>
+              <select
+                value={pageThickness}
+                onChange={(e) => setPageThickness(e.target.value)}
+                style={{ padding: 8, borderRadius: 8, border: "1px solid #d1d5db", minWidth: 260 }}
+              >
+                {PAGE_THICKNESS_OPTIONS.map(opt => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+              {pageThicknessPrice > 0 && (
+                <span style={{ marginLeft: 10 }}>+${pageThicknessPrice}</span>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+              We’ll update pricing here once you finalize thickness upgrade amounts.
+            </div>
+          </div>
+        )}
+
+        {/* Gilding */}
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={addGilding}
+              onChange={(e) => setAddGilding(e.target.checked)}
+            />
+            <span>Add Gilding (protective decorative edge)</span>
+            <span style={{ fontWeight: 600 }}>+${GILDING_PRICE}</span>
+          </label>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+            Applies up to 15 spreads / 30 pages.
+          </div>
+        </div>
+      </Section>
+
+      {/* 6) Coupon (demo) */}
+      <Section title="6) Coupon (demo)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <input
             placeholder="Enter coupon code (try PREPAID400)"
@@ -546,7 +622,6 @@ export default function AlbumDemo() {
             onChange={e => setCouponCode(e.target.value)}
             style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", minWidth: 280 }}
           />
-          {/* example discount */}
           {discount > 0 && <Badge>−${discount} applied</Badge>}
         </div>
       </Section>
@@ -606,6 +681,12 @@ export default function AlbumDemo() {
             </>
           )}
 
+          {/* Upgrades summary */}
+          {albumType === "signature" && (
+            <Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \\(\\+\\$TBD\\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />
+          )}
+          {addGilding && <Row label="Gilding" value={`+$${gildingUpcharge}`} />}
+
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
           <Row label="Total" value={`$${total}`} strong big />
@@ -638,6 +719,10 @@ export default function AlbumDemo() {
                     ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)
                       ? { mode: parentCoverMode, category: ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label, swatch: parentCoverSwatch }
                       : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums, priceEach: PARENT_PHOTO_COVER_PRICE, totalUpcharge: parentPhotoCoverUpcharge },
+                },
+                upgrades: {
+                  gilding: addGilding ? { price: gildingUpcharge } : null,
+                  pageThickness: albumType === "signature" ? { key: pageThickness, price: pageThicknessPrice } : null,
                 },
                 subtotal,
                 discount,
