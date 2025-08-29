@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 /* -----------------------------
    VERSION (for cache sanity)
 ------------------------------ */
-const VERSION = "build-upgrades-1";
+const VERSION = "build-engraving-1";
 
 /* -----------------------------
    PRODUCTS & PRICING
@@ -45,8 +45,6 @@ const PARENT_ALBUMS = {
 /* -----------------------------
    COVER SETS (by album type)
 ------------------------------ */
-
-/* Signature swatches */
 const SIGNATURE_BASE_CATEGORIES = [
   { key: "standard",   label: "Standard Leather", options: ["Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender","Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn","Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut"] },
   { key: "distressed", label: "Distressed Leather", options: ["Cream","Ore","Pebble","Sierra"] },
@@ -54,7 +52,6 @@ const SIGNATURE_BASE_CATEGORIES = [
   { key: "linen",      label: "Linen", options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"] },
 ];
 
-/* Artisan swatches */
 const ARTISAN_BASE_CATEGORIES = [
   { key: "modern",  label: "Modern Genuine Leather",  options: ["Black","Dark Brown","Espresso","Navy Blue","Charcoal","Blue Grey","Distressed Navy Blue","Distressed Dark Green","Distressed Cinnamon","Distressed Caramel","Ivory","White"] },
   { key: "classic", label: "Classic Genuine Leather", options: ["Black","Navy Blue","Dark Brown","Blue Grey","White","Beige"] },
@@ -87,6 +84,54 @@ const COVER_SET = {
     allowMetalAcrylic: false,
   },
 };
+
+/* -----------------------------
+   ENGRAVING (structure now; fill lists/rules later)
+------------------------------ */
+const ENGRAVING_LINE_MAX = 25;
+
+// TODO: replace these placeholders with your exact lists from the PDF
+const ENGRAVING_FONTS = [
+  "Serif (placeholder)",
+  "Sans (placeholder)",
+  "Script (placeholder)",
+];
+
+const FOIL_COLORS = [
+  "Gold (placeholder)",
+  "Silver (placeholder)",
+  "Copper (placeholder)",
+  "Matte Gold (placeholder)",
+  "Matte Silver (placeholder)",
+  "Black (placeholder)",
+  "White (placeholder)",
+];
+
+const DEBOSS_COLORS = [
+  "Blind (no color) (placeholder)",
+  "Gold (placeholder)",
+  "Silver (placeholder)",
+  "Copper (placeholder)",
+  "Black (placeholder)",
+  "White (placeholder)",
+];
+
+/* Rules engine placeholder:
+   In the future we can enforce:
+   - Not available on Linen
+   - Distressed → Blind only, etc.
+   For now, we simply display helper notes and allow all choices.
+*/
+function engravingHelperNote({ albumType, coverMode, baseCategoryLabel, coverSwatch, method }) {
+  // Example notes you might want later (currently informational only):
+  const notes = [];
+  // if (baseCategoryLabel?.includes("Linen")) notes.push("Linen may limit certain foil/deboss colors.");
+  // if (baseCategoryLabel?.includes("Distressed") && method === "deboss") notes.push("Distressed often supports Blind debossing only.");
+  if (!coverSwatch && coverMode !== "photo" && coverMode !== "metalacrylic") {
+    notes.push("Tip: choose your cover swatch first so we can validate engraving for that material.");
+  }
+  return notes.join(" ");
+}
 
 /* -----------------------------
    OTHER UPGRADES
@@ -132,6 +177,14 @@ export default function AlbumDemo() {
   const [maBindingCategory, setMaBindingCategory] = useState("standard");
   const [maBindingSwatch, setMaBindingSwatch] = useState(null);
 
+  /* --- NEW: Engraving --- */
+  const [engravingEnabled, setEngravingEnabled] = useState(false);
+  const [engravingMethod, setEngravingMethod] = useState("foil"); // "foil" | "deboss"
+  const [engravingFont, setEngravingFont] = useState(ENGRAVING_FONTS[0]);
+  const [engravingColor, setEngravingColor] = useState(FOIL_COLORS[0]);
+  const [engravingLine1, setEngravingLine1] = useState("");
+  const [engravingLine2, setEngravingLine2] = useState("");
+
   /* parent albums */
   const [parentType, setParentType] = useState("small");
   const [parentQty, setParentQty] = useState(0);
@@ -168,7 +221,15 @@ export default function AlbumDemo() {
     setMaBindingCategory("standard");
     setMaBindingSwatch(null);
 
-    // page thickness resets when switching album type
+    // reset engraving
+    setEngravingEnabled(false);
+    setEngravingMethod("foil");
+    setEngravingFont(ENGRAVING_FONTS[0]);
+    setEngravingColor(FOIL_COLORS[0]);
+    setEngravingLine1("");
+    setEngravingLine2("");
+
+    // reset other
     setPageThickness(PAGE_THICKNESS_OPTIONS[0].key);
     setAddGilding(false);
   }
@@ -191,10 +252,13 @@ export default function AlbumDemo() {
     return parentCoverMode === "photo" ? qty * PARENT_PHOTO_COVER_PRICE : 0;
   }, [parentCoverMode, parentQty]);
 
-  // Gilding upcharge (flat $75)
-  const gildingUpcharge = addGilding ? GILDING_PRICE : 0;
+  // Engraving price (currently included = $0)
+  const engravingPrice = 0;
 
-  // Page thickness price (currently all 0s as placeholders)
+  // Gilding upcharge (flat $75)
+  const GILDING_UPCHARGE = addGilding ? GILDING_PRICE : 0;
+
+  // Page thickness price (currently 0s as placeholders)
   const pageThicknessPrice = useMemo(() => {
     const opt = PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness);
     return opt?.price || 0;
@@ -204,7 +268,8 @@ export default function AlbumDemo() {
     (coverMode === "photo" ? PHOTO_COVER_PRICE : 0) +
     (coverMode === "metalacrylic" && COVER_SET[albumType].allowMetalAcrylic ? METAL_ACRYLIC_PRICE : 0) +
     parentPhotoCoverUpcharge +
-    gildingUpcharge +
+    (engravingEnabled ? engravingPrice : 0) +
+    GILDING_UPCHARGE +
     pageThicknessPrice;
 
   const subtotal = baseAlbumPrice + parentAlbumsPrice + upgradesPrice;
@@ -214,6 +279,7 @@ export default function AlbumDemo() {
   /* current cover set for main album */
   const currentSet = COVER_SET[albumType];
   const baseCategory = currentSet.baseCategories.find(c => c.key === coverMode);
+  const baseCategoryLabel = baseCategory?.label;
 
   /* validation */
   const mainCoverIsComplete =
@@ -229,12 +295,26 @@ export default function AlbumDemo() {
 
   const canCheckout = mainCoverIsComplete && parentCoverIsComplete;
 
+  /* engraving dynamic lists */
+  const engravingColorsList = engravingMethod === "foil" ? FOIL_COLORS : DEBOSS_COLORS;
+
+  const engravingNotes = engravingHelperNote({
+    albumType,
+    coverMode,
+    baseCategoryLabel,
+    coverSwatch,
+    method: engravingMethod,
+  });
+
+  const line1Count = engravingLine1.length;
+  const line2Count = engravingLine2.length;
+
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
       <h1 style={{ marginBottom: 8 }}>Album Configurator Demo</h1>
       <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>Version: {VERSION}</div>
 
-      {/* Album intro box */}
+      {/* Intro */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 12 }}>
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#fafafa" }}>
           <strong>{ALBUMS[albumType].label}</strong>
@@ -277,29 +357,26 @@ export default function AlbumDemo() {
 
         {/* tabs */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          {/* Base categories */}
           {currentSet.baseCategories.map(cat => (
             <Tab key={cat.key} active={coverMode === cat.key} onClick={() => { setCoverMode(cat.key); setCoverSwatch(null); }}>
               {cat.label}
             </Tab>
           ))}
 
-          {/* Photo */}
-          {currentSet.allowPhoto && (
-            <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
-              Photo ( +${PHOTO_COVER_PRICE} )
-            </Tab>
-          )}
+        {currentSet.allowPhoto && (
+          <Tab active={coverMode === "photo"} onClick={() => setCoverMode("photo")}>
+            Photo ( +${PHOTO_COVER_PRICE} )
+          </Tab>
+        )}
 
-          {/* Metal/Acrylic (Signature only) */}
-          {currentSet.allowMetalAcrylic && (
-            <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
-              Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
-            </Tab>
-          )}
+        {currentSet.allowMetalAcrylic && (
+          <Tab active={coverMode === "metalacrylic"} onClick={() => setCoverMode("metalacrylic")}>
+            Metal/Acrylic ( +${METAL_ACRYLIC_PRICE} )
+          </Tab>
+        )}
         </div>
 
-        {/* A) Base swatch grid */}
+        {/* Base material swatches */}
         {baseCategory && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
@@ -329,7 +406,7 @@ export default function AlbumDemo() {
           </>
         )}
 
-        {/* B) Photo Cover */}
+        {/* Photo Cover */}
         {coverMode === "photo" && currentSet.allowPhoto && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ marginBottom: 10 }}>
@@ -364,7 +441,7 @@ export default function AlbumDemo() {
           </div>
         )}
 
-        {/* C) Metal/Acrylic (Signature only) */}
+        {/* Metal/Acrylic (Signature only) */}
         {coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ marginBottom: 8 }}>
@@ -394,7 +471,6 @@ export default function AlbumDemo() {
               </select>
             </div>
 
-            {/* Binding & Back selection */}
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 13, marginBottom: 6 }}>
                 Binding & back material — please pick a material and color
@@ -403,7 +479,6 @@ export default function AlbumDemo() {
                 </span>
               </div>
 
-              {/* selected confirmation OR hint */}
               {maBindingSwatch ? (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 8 }}>
                   <small>Selected: <strong>{SIGNATURE_BASE_CATEGORIES.find(c => c.key === maBindingCategory)?.label} — {maBindingSwatch}</strong></small>
@@ -414,7 +489,6 @@ export default function AlbumDemo() {
                 </div>
               )}
 
-              {/* binding category tabs */}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 {SIGNATURE_BASE_CATEGORIES.filter(c => c.key !== "vegan").map(cat => (
                   <Tab
@@ -427,7 +501,6 @@ export default function AlbumDemo() {
                 ))}
               </div>
 
-              {/* swatch grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
                 {SIGNATURE_BASE_CATEGORIES.find(c => c.key === maBindingCategory)?.options.map(name => (
                   <div
@@ -451,8 +524,95 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 4) Parent Albums */}
-      <Section title="4) Parent Albums (optional)">
+      {/* 4) Engraving (NEW) */}
+      <Section title="4) Engraving (optional)">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={engravingEnabled}
+              onChange={(e) => setEngravingEnabled(e.target.checked)}
+            />
+            <span>Add Engraving</span>
+            <span style={{ fontSize: 12, color: "#6b7280" }}>(included)</span>
+          </label>
+        </div>
+
+        {engravingEnabled && (
+          <div style={{ display: "grid", gap: 12 }}>
+            {/* Method */}
+            <div>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Method:</label>
+              <select
+                value={engravingMethod}
+                onChange={(e) => {
+                  const method = e.target.value;
+                  setEngravingMethod(method);
+                  // swap the color list to the first item of the new list
+                  setEngravingColor((method === "foil" ? FOIL_COLORS : DEBOSS_COLORS)[0]);
+                }}
+              >
+                <option value="foil">Foil Stamping</option>
+                <option value="deboss">Standard Debossing</option>
+              </select>
+            </div>
+
+            {/* Font */}
+            <div>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Font:</label>
+              <select value={engravingFont} onChange={(e) => setEngravingFont(e.target.value)}>
+                {ENGRAVING_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+
+            {/* Color */}
+            <div>
+              <label style={{ fontSize: 13, marginRight: 8 }}>Color:</label>
+              <select value={engravingColor} onChange={(e) => setEngravingColor(e.target.value)}>
+                {engravingColorsList.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* Lines */}
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#555" }}>Line 1</label>
+                <input
+                  value={engravingLine1}
+                  onChange={(e) => setEngravingLine1(e.target.value.slice(0, ENGRAVING_LINE_MAX))}
+                  placeholder="e.g., Elizabeth & Michael"
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: "100%" }}
+                />
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                  {line1Count}/{ENGRAVING_LINE_MAX} characters
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#555" }}>Line 2 (optional)</label>
+                <input
+                  value={engravingLine2}
+                  onChange={(e) => setEngravingLine2(e.target.value.slice(0, ENGRAVING_LINE_MAX))}
+                  placeholder="e.g., September 21, 2025"
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc", width: "100%" }}
+                />
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                  {line2Count}/{ENGRAVING_LINE_MAX} characters
+                </div>
+              </div>
+            </div>
+
+            {/* Helper / Rules note (non-blocking for now) */}
+            {engravingNotes && (
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                {engravingNotes}
+              </div>
+            )}
+          </div>
+        )}
+      </Section>
+
+      {/* 5) Parent Albums */}
+      <Section title="5) Parent Albums (optional)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <label>
             Type:&nbsp;
@@ -469,14 +629,12 @@ export default function AlbumDemo() {
           <span style={{ opacity: 0.8 }}>= ${parentAlbumsPrice}</span>
         </div>
 
-        {/* Parent Album Cover Picker (shows when qty > 0) */}
         {Number(parentQty) > 0 && (
           <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
             <div style={{ fontSize: 13, marginBottom: 6 }}>
               Parent Album Cover — please pick a material and color (same options as Artisan)
             </div>
 
-            {/* tabs: Artisan base categories + Photo ( +$75 each ) */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               {ARTISAN_BASE_CATEGORIES.map(cat => (
                 <Tab
@@ -495,7 +653,6 @@ export default function AlbumDemo() {
               </Tab>
             </div>
 
-            {/* Base swatch grid */}
             {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode) && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
@@ -525,7 +682,6 @@ export default function AlbumDemo() {
               </>
             )}
 
-            {/* Photo cover inputs ( +$75 each ) */}
             {parentCoverMode === "photo" && (
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
                 <div style={{ marginBottom: 10 }}>
@@ -562,7 +718,6 @@ export default function AlbumDemo() {
           </div>
         )}
 
-        {/* Helpful hint if qty > 0 but no cover yet */}
         {Number(parentQty) > 0 && !parentCoverIsComplete && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#b45309" }}>
             Please select a Parent Album cover (pick a swatch or choose Photo).
@@ -570,9 +725,8 @@ export default function AlbumDemo() {
         )}
       </Section>
 
-      {/* 5) Upgrades */}
-      <Section title="5) Upgrades">
-        {/* Page Thickness (Signature only) */}
+      {/* 6) Upgrades */}
+      <Section title="6) Upgrades">
         {albumType === "signature" && (
           <div style={{ marginBottom: 12 }}>
             <div style={{ marginBottom: 8, fontWeight: 600 }}>Page Thickness (Signature only)</div>
@@ -596,7 +750,6 @@ export default function AlbumDemo() {
           </div>
         )}
 
-        {/* Gilding */}
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
             <input
@@ -613,8 +766,8 @@ export default function AlbumDemo() {
         </div>
       </Section>
 
-      {/* 6) Coupon (demo) */}
-      <Section title="6) Coupon (demo)">
+      {/* 7) Coupon (demo) */}
+      <Section title="7) Coupon (demo)">
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <input
             placeholder="Enter coupon code (try PREPAID400)"
@@ -656,6 +809,21 @@ export default function AlbumDemo() {
             </>
           )}
 
+          {/* Engraving summary */}
+          {engravingEnabled && (
+            <>
+              <Row label={`Engraving: ${engravingMethod === "foil" ? "Foil Stamping" : "Standard Debossing"}`} value={"$0"} />
+              <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>
+                Font: {engravingFont} — Color: {engravingColor}
+              </div>
+              {(engravingLine1 || engravingLine2) && (
+                <div style={{ fontSize: 14, color: "#444" }}>
+                  Text: {[engravingLine1, engravingLine2].filter(Boolean).join(" / ")}
+                </div>
+              )}
+            </>
+          )}
+
           {/* Parent Albums summary */}
           <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
           {Number(parentQty) > 0 && (
@@ -685,7 +853,7 @@ export default function AlbumDemo() {
           {albumType === "signature" && (
             <Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \\(\\+\\$TBD\\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />
           )}
-          {addGilding && <Row label="Gilding" value={`+$${gildingUpcharge}`} />}
+          {addGilding && <Row label="Gilding" value={`+$${GILDING_UPCHARGE}`} />}
 
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
@@ -712,6 +880,14 @@ export default function AlbumDemo() {
                     : coverMode === "photo"
                     ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
                     : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch },
+                engraving: engravingEnabled ? {
+                  method: engravingMethod,
+                  font: engravingFont,
+                  color: engravingColor,
+                  line1: engravingLine1,
+                  line2: engravingLine2,
+                  price: engravingPrice,
+                } : null,
                 parent: {
                   type: parentType,
                   qty: Number(parentQty) || 0,
@@ -721,7 +897,7 @@ export default function AlbumDemo() {
                       : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums, priceEach: PARENT_PHOTO_COVER_PRICE, totalUpcharge: parentPhotoCoverUpcharge },
                 },
                 upgrades: {
-                  gilding: addGilding ? { price: gildingUpcharge } : null,
+                  gilding: addGilding ? { price: GILDING_UPCHARGE } : null,
                   pageThickness: albumType === "signature" ? { key: pageThickness, price: pageThicknessPrice } : null,
                 },
                 subtotal,
