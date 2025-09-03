@@ -1,17 +1,20 @@
-// AlbumDemo (Merged) — includes ImprintingConfigurator inline so you can paste 1 file
-// Drop these image files into ./assets or switch the <img src> paths below to your public /assets
-//   foilstamping.png, standarddebossing.png, standarddebossingcoloroptions.png, gilding.png
+// AlbumDemo (merged v2)
+// Images: place these in /public/assets (Vite/CRA) so the <img src> paths below work without imports.
+//   /assets/foilstamping.png
+//   /assets/standarddebossing.png
+//   /assets/standarddebossingcoloroptions.png
+//   /assets/gilding.png
 
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
 /* -----------------------------
-   VERSION (for cache sanity)
+   VERSION
 ------------------------------ */
-const VERSION = "build-ma-design-1 + imprinting-v1";
+const VERSION = "build-ma-design-1 + imprinting-v2";
 
 /* -----------------------------
-   PRODUCTS & PRICING
+   PRODUCTS & PRICING (unchanged)
 ------------------------------ */
 const ALBUMS = {
   signature: {
@@ -40,7 +43,6 @@ const ALBUMS = {
   },
 };
 
-/* Parent Album pricing (base; add-ons priced separately) */
 const PARENT_ALBUMS = {
   small: { label: "8×8 or 6×9", each: 325, twoFor: 600 },
   large: { label: "10×10 or 8×11", each: 400, twoFor: 750 },
@@ -49,8 +51,6 @@ const PARENT_ALBUMS = {
 /* -----------------------------
    COVER SETS (by album type)
 ------------------------------ */
-
-/* Signature swatches */
 const SIGNATURE_BASE_CATEGORIES = [
   { key: "standard",   label: "Standard Leather", options: ["Ash","Black Olive","Blush","Buttercream","Cardinal","Flamingo","Lavender","Maroon","Mist","Monsoon","Mystique","Nightfall","Northern Lights","Peppercorn","Pink Coral","Pink Quartz","Polar","Powder Blue","Saddle","Seafoam","Soft Gray","Walnut"] },
   { key: "distressed", label: "Distressed Leather", options: ["Cream","Ore","Pebble","Sierra"] },
@@ -58,7 +58,6 @@ const SIGNATURE_BASE_CATEGORIES = [
   { key: "linen",      label: "Linen", options: ["Ebony","Fog (Shimmer)","Oyster (shimmer)","Plum","Sage","Sand","Silver","Sky","Tundra","Tusk"] },
 ];
 
-/* Artisan swatches */
 const ARTISAN_BASE_CATEGORIES = [
   { key: "modern",  label: "Modern Genuine Leather",  options: ["Black","Dark Brown","Espresso","Navy Blue","Charcoal","Blue Grey","Distressed Navy Blue","Distressed Dark Green","Distressed Cinnamon","Distressed Caramel","Ivory","White"] },
   { key: "classic", label: "Classic Genuine Leather", options: ["Black","Navy Blue","Dark Brown","Blue Grey","White","Beige"] },
@@ -66,34 +65,23 @@ const ARTISAN_BASE_CATEGORIES = [
   { key: "linen",   label: "Linen", options: ["Burgundy","Midnight Blue","Black","Dark Chocolate","Forest Green","Dark Hunter Green","Coffee","Steel Blue","Tortilla Brown","Concrete Grey","Petal Pink","Buttermilk","Teal","Stone Blue","Walnut","Dove Grey","Wheat","Sand","Green Tea","Oatmeal","Cream","Navy Blue","Slate Grey","Maroon","Pink Rose","Light Blue"] },
 ];
 
-/* Photo cover substrates */
 const PHOTO_SUBSTRATES = ["Canvas","Glossy","Metallic","Matte Metallic","Satin"];
-const PHOTO_COVER_PRICE = 75;             // main album photo cover price
-const PARENT_PHOTO_COVER_PRICE = 75;      // per parent album
+const PHOTO_COVER_PRICE = 75;
+const PARENT_PHOTO_COVER_PRICE = 75;
 
-/* Metal/Acrylic (+$200) — Signature only */
 const METAL_ACRYLIC_PRICE = 200;
 const METAL_ACRYLIC_TYPES = [
   { key: "metal", label: "Metal", finishes: ["Vivid Metal (high-gloss)", "Matte Metal (glare-reducing)", "Brushed Metal (textured)"] },
   { key: "acrylic", label: "Acrylic", finishes: ["Gloss Acrylic (high-gloss)", "Matte Acrylic (glare-reducing)"] },
 ];
 
-/* Cover set config */
 const COVER_SET = {
-  signature: {
-    baseCategories: SIGNATURE_BASE_CATEGORIES,
-    allowPhoto: true,
-    allowMetalAcrylic: true,
-  },
-  artisan: {
-    baseCategories: ARTISAN_BASE_CATEGORIES,
-    allowPhoto: true,
-    allowMetalAcrylic: false,
-  },
+  signature: { baseCategories: SIGNATURE_BASE_CATEGORIES, allowPhoto: true, allowMetalAcrylic: true },
+  artisan: { baseCategories: ARTISAN_BASE_CATEGORIES, allowPhoto: true, allowMetalAcrylic: false },
 };
 
 /* -----------------------------
-   OTHER UPGRADES / PRICES
+   UPGRADES / MISC PRICES
 ------------------------------ */
 const GILDING_PRICE = 75; // flat up to 15 spreads / 30 pages
 const PAGE_THICKNESS_OPTIONS = [
@@ -122,8 +110,7 @@ function PreviewImg({ src, alt }) {
 }
 
 /* ==============================
-   ImprintingConfigurator (inline)
-   — uses your PDF: Foil Stamping, Standard Debossing, Gilding
+   ImprintingConfigurator (no Gilding tab)
 ============================== */
 const FOIL_FONTS = ["Alana Pro", "Garage Gothic"];
 const DEBOSS_FONTS = ["Baskerville", "Coco Gothic", "Dessau Pro", "Eye Catching", "Garage Gothic"];
@@ -135,7 +122,6 @@ const FOIL_POSITIONS = [
   "Inside Back — Lower Center",
   "Inside Back — Lower Right",
 ];
-const GILDING_COLORS = ["Black","Gold","Silver"];
 const SAFE_TEXT_RE = /^[A-Za-z0-9 .,\-&'\/] *$/;
 
 function RadioGrid({ options, value, onChange, columns = 3 }) {
@@ -167,7 +153,6 @@ function TextLines({ value, onChange, maxLines = 3, charLimit = 28, disallowSpec
           <span style={{ fontSize: 11, color: "#6b7280", textAlign: "right" }}>{(value[i] || "").length}/{charLimit}</span>
         </div>
       ))}
-      {disallowSpecial && <div style={{ fontSize: 11, color: "#6b7280" }}>* Foil stamping does not allow special characters.</div>}
     </div>
   );
 }
@@ -196,24 +181,20 @@ function ImprintingConfigurator({ value, onChange, forceTwoLinesForDeboss = fals
     method: "Foil Stamping",
     foil: { font: FOIL_FONTS[0], color: FOIL_COLORS[2], position: FOIL_POSITIONS[0], lines: ["", "", ""] },
     deboss: { font: DEBOSS_FONTS[0], color: DEBOSS_COLORS[0], lines: ["", "", ""] },
-    gilding: { color: GILDING_COLORS[1] },
     ...(value || {}),
   }), [value]);
   const update = (patch) => onChange?.({ ...state, ...patch });
-  const lineCfg = activeTab === "Foil Stamping" ? { lines: 3, limit: 28, foil: true }
-              : activeTab === "Standard Debossing" ? { lines: forceTwoLinesForDeboss ? 2 : 3, limit: 28 }
-              : { lines: 0, limit: 0 };
 
   return (
     <div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        {(["Foil Stamping", "Standard Debossing", "Gilding"]).map(label => (
+        {(["Foil Stamping", "Standard Debossing"]).map(label => (
           <button key={label} onClick={() => { setActiveTab(label); update({ method: label }); }} style={{ padding: "8px 12px", borderRadius: 9999, border: activeTab === label ? "2px solid #111" : "1px solid #d1d5db", background: activeTab === label ? "#111" : "#fff", color: activeTab === label ? "#fff" : "#111" }}>{label}</button>
         ))}
       </div>
 
       {activeTab === "Foil Stamping" && (
-        <SectionCard title="Foil Stamping" image="./assets/foilstamping.png" description={<div><span style={{ fontSize:12, color:'#6b7280' }}>Fonts: Alana Pro, Garage Gothic · Up to 3 lines · 28 chars/line</span></div>}>
+        <SectionCard title="Foil Stamping" image="/assets/foilstamping.png" description={<div><span style={{ fontSize:12, color:'#6b7280' }}>Fonts: Alana Pro, Garage Gothic · Up to 3 lines · 28 chars/line</span></div>}>
           <div>
             <div style={{ fontSize: 13, marginBottom: 6 }}>Font</div>
             <RadioGrid options={FOIL_FONTS} value={state.foil.font} onChange={(font) => update({ foil: { ...state.foil, font } })} columns={2} />
@@ -228,13 +209,13 @@ function ImprintingConfigurator({ value, onChange, forceTwoLinesForDeboss = fals
           </div>
           <div>
             <div style={{ fontSize: 13, marginBottom: 6 }}>Stamping Text</div>
-            <TextLines value={state.foil.lines} onChange={(lines) => update({ foil: { ...state.foil, lines } })} maxLines={lineCfg.lines} charLimit={lineCfg.limit} disallowSpecial />
+            <TextLines value={state.foil.lines} onChange={(lines) => update({ foil: { ...state.foil, lines } })} maxLines={3} charLimit={28} disallowSpecial />
           </div>
         </SectionCard>
       )}
 
       {activeTab === "Standard Debossing" && (
-        <SectionCard title="Standard Debossing" image="./assets/standarddebossing.png" description={<div><span style={{ fontSize:12, color:'#6b7280' }}>Fonts: Baskerville, Coco Gothic, Dessau Pro, Eye Catching, Garage Gothic</span></div>}>
+        <SectionCard title="Standard Debossing" image="/assets/standarddebossing.png" description={<div><span style={{ fontSize:12, color:'#6b7280' }}>Fonts: Baskerville, Coco Gothic, Dessau Pro, Eye Catching, Garage Gothic</span></div>}>
           <div>
             <div style={{ fontSize: 13, marginBottom: 6 }}>Font</div>
             <RadioGrid options={DEBOSS_FONTS} value={state.deboss.font} onChange={(font) => update({ deboss: { ...state.deboss, font } })} columns={3} />
@@ -243,7 +224,7 @@ function ImprintingConfigurator({ value, onChange, forceTwoLinesForDeboss = fals
             <div style={{ fontSize: 13, marginBottom: 6 }}>Deboss Color</div>
             <RadioGrid options={DEBOSS_COLORS} value={state.deboss.color} onChange={(color) => update({ deboss: { ...state.deboss, color } })} columns={3} />
             <div style={{ marginTop: 8 }}>
-              <img src="./assets/standarddebossingcoloroptions.png" alt="Deboss color swatches" style={{ width: "100%", borderRadius: 12, border: "1px solid #f3f4f6" }} />
+              <img src="/assets/standarddebossingcoloroptions.png" alt="Deboss color swatches" style={{ width: "100%", borderRadius: 12, border: "1px solid #f3f4f6" }} />
             </div>
           </div>
           <div>
@@ -253,19 +234,11 @@ function ImprintingConfigurator({ value, onChange, forceTwoLinesForDeboss = fals
         </SectionCard>
       )}
 
-      {activeTab === "Gilding" && (
-        <SectionCard title="Gilding" image="./assets/gilding.png" description={<div><span style={{ fontSize:12, color:'#6b7280' }}>Edge colors: Black, Gold, Silver</span><div style={{ fontSize:12, color:'#6b7280' }}>Not available for rounded corners, Metallic, or Classic Felt pages.</div></div>}>
-          <div>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>Gilding Color</div>
-            <RadioGrid options={GILDING_COLORS} value={state.gilding.color} onChange={(color) => update({ gilding: { ...state.gilding, color } })} columns={3} />
-          </div>
-        </SectionCard>
-      )}
-
-      <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#fafafa" }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>Selected Imprinting</div>
-        <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{JSON.stringify(state, null, 2)}</pre>
-      </div>
+      {/* Debug toggle instead of always-on JSON */}
+      <details style={{ marginTop: 10, background: "#fafafa", border: "1px solid #e5e7eb", borderRadius: 12, padding: 10 }}>
+        <summary style={{ cursor: "pointer", fontWeight: 600, userSelect: "none" }}>Show debug payload</summary>
+        <pre style={{ fontSize: 12, whiteSpace: "pre-wrap", marginTop: 8 }}>{JSON.stringify(state, null, 2)}</pre>
+      </details>
     </div>
   );
 }
@@ -298,7 +271,7 @@ export default function AlbumDemo() {
   const [maText1, setMaText1] = useState("");
   const [maText2, setMaText2] = useState("");
 
-  /* NEW: imprinting (Foil/Deboss/Gilding) */
+  /* NEW: imprinting (Foil/Deboss) */
   const [imprinting, setImprinting] = useState();
 
   /* parent albums */
@@ -314,7 +287,8 @@ export default function AlbumDemo() {
   const [couponCode, setCouponCode] = useState("");
 
   /* upgrades */
-  const [addGilding, setAddGilding] = useState(false); // still available as checkbox; imprinting tab can also imply gilding
+  const [addGilding, setAddGilding] = useState(false);
+  const [gildingColor, setGildingColor] = useState("Gold");
   const [pageThickness, setPageThickness] = useState(PAGE_THICKNESS_OPTIONS[0].key); // Signature only
 
   /* when album type switches */
@@ -336,6 +310,7 @@ export default function AlbumDemo() {
     setImprinting(undefined);
     setPageThickness(PAGE_THICKNESS_OPTIONS[0].key);
     setAddGilding(false);
+    setGildingColor("Gold");
   }
 
   /* pricing */
@@ -345,19 +320,14 @@ export default function AlbumDemo() {
     return size ? size.price : 0;
   }, [albumType, albumSizeKey]);
 
-  const parentAlbumsPrice = useMemo(
-    () => priceParentAlbums(parentType, Number(parentQty) || 0),
-    [parentType, parentQty]
-  );
+  const parentAlbumsPrice = useMemo(() => priceParentAlbums(parentType, Number(parentQty) || 0), [parentType, parentQty]);
 
   const parentPhotoCoverUpcharge = useMemo(() => {
     const qty = Number(parentQty) || 0;
     return parentCoverMode === "photo" ? qty * PARENT_PHOTO_COVER_PRICE : 0;
   }, [parentCoverMode, parentQty]);
 
-  // Gilding upcharge: either user checked upgrade OR selected it via Imprinting tab
-  const gildingChosenViaImprinting = imprinting?.method === "Gilding";
-  const GILDING_UPCHARGE = (addGilding || gildingChosenViaImprinting) ? GILDING_PRICE : 0;
+  const GILDING_UPCHARGE = addGilding ? GILDING_PRICE : 0;
 
   const pageThicknessPrice = useMemo(() => {
     const opt = PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness);
@@ -378,7 +348,6 @@ export default function AlbumDemo() {
   /* current cover set for main album */
   const currentSet = COVER_SET[albumType];
   const baseCategory = currentSet.baseCategories.find(c => c.key === coverMode);
-  const baseCategoryLabel = baseCategory?.label;
 
   /* validation */
   const mainCoverIsComplete =
@@ -392,10 +361,7 @@ export default function AlbumDemo() {
     (!!parentCoverCategoryObj && !!parentCoverSwatch) ||
     (parentCoverMode === "photo");
 
-  const canCheckout = mainCoverIsComplete && parentCoverIsComplete; // imprinting has no blockers
-
-  /* preview helpers */
-  const gildingPreviewSrc = `./assets/gilding.png`; // optional
+  const canCheckout = mainCoverIsComplete && parentCoverIsComplete;
 
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif", maxWidth: 1000, margin: "0 auto" }}>
@@ -532,7 +498,7 @@ export default function AlbumDemo() {
       </Section>
 
       {/* 4) Imprinting */}
-      <Section title="4) Imprinting (Foil · Deboss · Gilding)">
+      <Section title="4) Imprinting (Foil · Deboss)">
         <ImprintingConfigurator value={imprinting} onChange={setImprinting} forceTwoLinesForDeboss={false} />
       </Section>
 
@@ -605,15 +571,25 @@ export default function AlbumDemo() {
           </div>
         )}
 
+        {/* Gilding lives here only (with image + colors) */}
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={addGilding || gildingChosenViaImprinting} onChange={(e) => setAddGilding(e.target.checked)} />
+            <input type="checkbox" checked={addGilding} onChange={(e) => setAddGilding(e.target.checked)} />
             <span>Add Gilding (protective decorative edge)</span>
             <span style={{ fontWeight: 600 }}>+${GILDING_PRICE}</span>
           </label>
-          <PreviewImg src={gildingPreviewSrc} alt="Gilding example" />
-          {imprinting?.method === 'Gilding' && (<div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Selected in Imprinting: <strong>{imprinting?.gilding?.color}</strong></div>)}
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Applies up to 15 spreads / 30 pages.</div>
+          <div style={{ display: "flex", gap: 16, alignItems: "center", marginTop: 8 }}>
+            <PreviewImg src="/assets/gilding.png" alt="Gilding" />
+            <div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>Edge colors: Black, Gold, Silver</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {["Black","Gold","Silver"].map((c) => (
+                  <button key={c} onClick={() => setGildingColor(c)} style={{ padding: "6px 10px", borderRadius: 9999, border: gildingColor === c ? "2px solid #111" : "1px solid #d1d5db", background: gildingColor === c ? "#111" : "#fff", color: gildingColor === c ? "#fff" : "#111" }}>{c}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Not available for rounded corners, Metallic, or Classic Felt pages.</div>
         </div>
       </Section>
 
@@ -631,7 +607,7 @@ export default function AlbumDemo() {
           <Row label={`${ALBUMS[albumType].label} — ${ALBUMS[albumType].sizes.find(s => s.key === albumSizeKey)?.label}`} value={`$${baseAlbumPrice}`} />
           {baseCategory && (<Row label={`Cover: ${baseCategory.label}${coverSwatch ? ` — ${coverSwatch}` : ""}`} value={"$0"} />)}
           {coverMode === "photo" && (<><Row label="Cover: Photo" value={`+$${PHOTO_COVER_PRICE}`} /><div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>Substrate: {photoSubstrate}{enteredPhotoNums.length > 0 && <> — Images: {enteredPhotoNums.join(", ")}</>}</div></>)}
-          {coverMode === "metalacrylic" && currentSet.allowMetalAcrylic && (
+          {coverMode === "metalacrylic" && (
             <>
               <Row label="Cover: Metal/Acrylic" value={`+$${METAL_ACRYLIC_PRICE}`} />
               <div style={{ fontSize: 14, color: "#444", marginTop: -2 }}>{METAL_ACRYLIC_TYPES.find(t => t.key === maType)?.label} — {maFinish}</div>
@@ -643,7 +619,7 @@ export default function AlbumDemo() {
           {/* Imprinting summary */}
           {imprinting && (
             <>
-              <Row label={`Imprinting: ${imprinting.method}`} value={imprinting.method === 'Gilding' ? `+$${GILDING_PRICE}` : "$0"} />
+              <Row label={`Imprinting: ${imprinting.method}`} value={"$0"} />
               {imprinting.method === 'Foil Stamping' && (
                 <div style={{ fontSize: 14, color: "#444" }}>
                   Font: {imprinting.foil.font} — Color: {imprinting.foil.color} — Position: {imprinting.foil.position}
@@ -655,9 +631,6 @@ export default function AlbumDemo() {
                   Font: {imprinting.deboss.font} — Color: {imprinting.deboss.color}
                   {imprinting.deboss.lines.filter(Boolean).length > 0 && (<div>Text: {imprinting.deboss.lines.filter(Boolean).join(" / ")}</div>)}
                 </div>
-              )}
-              {imprinting.method === 'Gilding' && (
-                <div style={{ fontSize: 14, color: "#444" }}>Edge Color: {imprinting.gilding.color}</div>
               )}
             </>
           )}
@@ -678,7 +651,7 @@ export default function AlbumDemo() {
 
           {/* Upgrades summary */}
           {albumType === "signature" && (<Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \(\+\$TBD\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />)}
-          {(addGilding || gildingChosenViaImprinting) && <Row label="Gilding" value={`+$${GILDING_UPCHARGE}`} />}
+          {addGilding && <Row label={`Gilding${gildingColor ? ` — ${gildingColor}` : ""}`} value={`+$${GILDING_UPCHARGE}`} />}
 
           <Row label="Subtotal" value={`$${subtotal}`} strong />
           <Row label="Discount" value={`−$${discount}`} />
@@ -707,7 +680,7 @@ export default function AlbumDemo() {
                   : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums, priceEach: PARENT_PHOTO_COVER_PRICE, totalUpcharge: parentPhotoCoverUpcharge },
               },
               upgrades: {
-                gilding: (addGilding || gildingChosenViaImprinting) ? { price: GILDING_UPCHARGE, color: imprinting?.gilding?.color } : null,
+                gilding: addGilding ? { price: GILDING_UPCHARGE, color: gildingColor } : null,
                 pageThickness: albumType === "signature" ? { key: pageThickness, price: pageThicknessPrice } : null,
               },
               subtotal,
