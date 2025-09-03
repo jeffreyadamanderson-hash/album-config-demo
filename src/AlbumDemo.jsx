@@ -1042,4 +1042,167 @@ export default function AlbumDemo() {
           )}
 
           {/* Parent Albums summary */}
-          <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty_
+          <Row label={`Parent Albums (${PARENT_ALBUMS[parentType].label} × ${Number(parentQty) || 0})`} value={`$${parentAlbumsPrice}`} />
+          {Number(parentQty) > 0 && (
+            <>
+              {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode) && (
+                <div style={{ fontSize: 14, color: "#444" }}>
+                  Parent Cover: {ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label}
+                  {parentCoverSwatch ? ` — ${parentCoverSwatch}` : ""}
+                </div>
+              )}
+              {parentCoverMode === "photo" && (
+                <>
+                  <div style={{ fontSize: 14, color: "#444" }}>
+                    Parent Cover: Photo — Substrate: {parentPhotoSubstrate}
+                    {parentEnteredPhotoNums.length > 0 && <> — Images: {parentEnteredPhotoNums.join(", ")}</>}
+                  </div>
+                  <Row
+                    label={`Parent Photo Cover upcharge`}
+                    value={`+$${PARENT_PHOTO_COVER_PRICE} × ${Number(parentQty) || 0} = $${parentPhotoCoverUpcharge}`}
+                  />
+                </>
+              )}
+            </>
+          )}
+
+          {/* Upgrades summary */}
+          {albumType === "signature" && (
+            <Row label={`Page Thickness: ${PAGE_THICKNESS_OPTIONS.find(o => o.key === pageThickness)?.label.replace(/ \(\+\$TBD\)/, "")}`} value={pageThicknessPrice > 0 ? `+$${pageThicknessPrice}` : "$0"} />
+          )}
+          {addGilding && <Row label="Gilding" value={`+$${GILDING_UPCHARGE}`} />}
+
+          <Row label="Subtotal" value={`$${subtotal}`} strong />
+          <Row label="Discount" value={`−$${discount}`} />
+          <Row label="Total" value={`$${total}`} strong big />
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            style={{ ...primaryBtn, opacity: canCheckout ? 1 : 0.6, pointerEvents: canCheckout ? "auto" : "none" }}
+            onClick={() => alert("Next: we’ll connect Stripe Checkout and email notifications.")}
+            title={canCheckout ? "Continue to Checkout (coming next)" : "Please complete the selections first"}
+          >
+            Continue to Checkout (coming next)
+          </button>
+          <button
+            style={ghostBtn}
+            onClick={() => {
+              const payload = {
+                albumType,
+                albumSizeKey,
+                cover:
+                  baseCategory
+                    ? { mode: coverMode, category: baseCategory.label, swatch: coverSwatch }
+                    : coverMode === "photo"
+                    ? { mode: "photo", price: PHOTO_COVER_PRICE, substrate: photoSubstrate, images: enteredPhotoNums }
+                    : { mode: "metalacrylic", price: METAL_ACRYLIC_PRICE, type: maType, finish: maFinish, bindingCategory: maBindingCategory, bindingSwatch: maBindingSwatch, images: maEnteredImageNums, text1: maText1, text2: maText2 },
+                engraving: (engravingEnabled && !(coverMode === "photo" || coverMode === "metalacrylic")) ? {
+                  method: engravingMethod,
+                  font: engravingFont,
+                  color: engravingColor,
+                  placement: engravingPlacement,
+                  line1: engravingLine1,
+                  line2: engravingLine2,
+                  price: 0,
+                } : null,
+                imprinting, // add imprinting block
+                parent: {
+                  type: parentType,
+                  qty: Number(parentQty) || 0,
+                  cover:
+                    ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)
+                      ? { mode: parentCoverMode, category: ARTISAN_BASE_CATEGORIES.find(c => c.key === parentCoverMode)?.label, swatch: parentCoverSwatch }
+                      : { mode: "photo", substrate: parentPhotoSubstrate, images: parentEnteredPhotoNums, priceEach: PARENT_PHOTO_COVER_PRICE, totalUpcharge: parentPhotoCoverUpcharge },
+                },
+                upgrades: {
+                  gilding: addGilding ? { price: GILDING_UPCHARGE } : null,
+                  pageThickness: albumType === "signature" ? { key: pageThickness, price: pageThicknessPrice } : null,
+                },
+                subtotal,
+                discount,
+                total,
+                version: VERSION,
+              };
+              navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+              alert("Selections copied to clipboard (we’ll send these to you automatically once checkout is connected).");
+            }}
+          >
+            Copy selections (for testing)
+          </button>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* UI components */
+function Section({ title, children }) {
+  return (
+    <section style={{ margin: "20px 0" }}>
+      <h2 style={{ margin: "0 0 8px" }}>{title}</h2>
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>{children}</div>
+    </section>
+  );
+}
+function Card({ children, selected, onClick }) {
+  return (
+    <div onClick={onClick} style={{
+      cursor: "pointer", border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      borderRadius: 12, padding: 12, background: selected ? "#f0f7ff" : "white",
+    }}>
+      {children}
+    </div>
+  );
+}
+function OptionButton({ label, selected, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "8px 12px", borderRadius: 9999, border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: selected ? "#f0f7ff" : "white", cursor: "pointer",
+    }}>
+      {label}
+    </button>
+  );
+}
+function Row({ label, value, strong, big }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", fontWeight: strong ? 700 : 400, fontSize: big ? 20 : 16 }}>
+      <span>{label}</span><span>{value}</span>
+    </div>
+  );
+}
+function Badge({ children }) {
+  return (
+    <span style={{ border: "1px solid #d1d5db", borderRadius: 9999, padding: "4px 8px", fontSize: 12 }}>
+      {children}
+    </span>
+  );
+}
+function Tab({ children, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "6px 10px", borderRadius: 9999,
+      border: active ? "2px solid #2563eb" : "1px solid #d1d5db",
+      background: active ? "#f0f7ff" : "white", cursor: "pointer"
+    }}>
+      {children}
+    </button>
+  );
+}
+
+const primaryBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #2563eb",
+  background: "#2563eb",
+  color: "white",
+  cursor: "pointer",
+};
+const ghostBtn = {
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "white",
+  color: "black",
+};
