@@ -1,14 +1,11 @@
 // ImprintingConfigurator.jsx
-// Standalone component for Foil Stamping / Standard Debossing
-// - Images are passed via props (defaults point to /assets/*.png in /public)
-// - No pricing here; parent controls costs
-// - Optional "forceTwoLinesForDeboss" to cap deboss to 2 lines when needed
+// Foil Stamping + Standard Debossing
+// - Images are passed via props (defaults are /public/assets/*.png paths)
+// - No pricing; parent controls costs
+// - Deboss position is fixed to "Front — Center" (no selector)
 
 import { useMemo, useState } from "react";
 
-/* --------------------------------
-   Constants (fonts, colors, rules)
-----------------------------------*/
 const FOIL_FONTS = ["Alana Pro", "Garage Gothic"];
 const DEBOSS_FONTS = ["Baskerville", "Coco Gothic", "Dessau Pro", "Eye Catching", "Garage Gothic"];
 
@@ -22,12 +19,9 @@ const FOIL_POSITIONS = [
   "Inside Back — Lower Right",
 ];
 
-// Simple whitelist for foil text (A–Z a–z 0–9 space . , - & ' /)
+// A–Z, 0–9, space and basic punctuation for Foil
 const FOIL_SAFE_RE = /^[A-Za-z0-9 .,\-&'\/]*$/;
 
-/* --------------------------------
-   Small UI helpers
-----------------------------------*/
 function Pills({ options, value, onChange, columns = 3 }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns}, minmax(0,1fr))`, gap: 8 }}>
@@ -114,9 +108,6 @@ function SectionCard({ title, image, description, children }) {
   );
 }
 
-/* --------------------------------
-   Main Component
-----------------------------------*/
 export default function ImprintingConfigurator({
   value,
   onChange,
@@ -125,7 +116,6 @@ export default function ImprintingConfigurator({
   debossImg = "/assets/standarddebossing.png",
   debossColorsImg = "/assets/standarddebossingcoloroptions.png",
 }) {
-  // seed internal state from value (but stay controlled via onChange)
   const seed = useMemo(
     () => ({
       method: "Foil Stamping",
@@ -138,17 +128,17 @@ export default function ImprintingConfigurator({
   const [activeTab, setActiveTab] = useState(seed.method || "Foil Stamping");
   const update = (patch) => onChange?.({ ...seed, ...patch });
 
-  /* -------- Foil UI -------- */
+  // Foil handlers
   const foil = seed.foil || { font: FOIL_FONTS[0], color: FOIL_COLORS[2], position: FOIL_POSITIONS[0], lines: ["", "", ""] };
   const onFoilLine = (i, next) => {
     const lines = [...(foil.lines || ["", "", ""])];
     const safe = next.slice(0, 28);
-    if (!FOIL_SAFE_RE.test(safe)) return; // block disallowed characters
+    if (!FOIL_SAFE_RE.test(safe)) return;
     lines[i] = safe;
     update({ foil: { ...foil, lines } });
   };
 
-  /* ------- Deboss UI ------- */
+  // Deboss handlers (fixed position: Front — Center)
   const deboss = seed.deboss || { font: DEBOSS_FONTS[0], color: DEBOSS_COLORS[0], lines: ["", "", ""] };
   const maxDebossLines = forceTwoLinesForDeboss ? 2 : 3;
   const onDebossLine = (i, next) => {
@@ -239,7 +229,8 @@ export default function ImprintingConfigurator({
           image={debossImg}
           description={
             <span style={{ fontSize: 12, color: "#6b7280" }}>
-              Fonts: Baskerville, Coco Gothic, Dessau Pro, Eye Catching, Garage Gothic · Up to {maxDebossLines}–3 lines
+              Fonts: Baskerville, Coco Gothic, Dessau Pro, Eye Catching, Garage Gothic · Up to {maxDebossLines}–3 lines<br />
+              <strong>Position: Front — Center only</strong>
             </span>
           }
         >
@@ -278,13 +269,6 @@ export default function ImprintingConfigurator({
           </div>
         </SectionCard>
       )}
-
-      {/* Optional: Debug payload (collapsed by default) */}
-      <details style={{ marginTop: 10, background: "#fafafa", border: "1px solid #e5e7eb", borderRadius: 12, padding: 10 }}>
-        <summary style={{ cursor: "pointer", fontWeight: 600, userSelect: "none" }}>Show debug payload</summary>
-        <pre style={{ fontSize: 12, whiteSpace: "pre-wrap", marginTop: 8 }}>{JSON.stringify(seed, null, 2)}</pre>
-      </details>
     </div>
   );
 }
-
