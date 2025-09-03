@@ -738,3 +738,4 @@ function Tab({ children, active, onClick }) {
 
 const primaryBtn = { padding: "10px 14px", borderRadius: 10, border: "1px solid #2563eb", background: "#2563eb", color: "white", cursor: "pointer" };
 const ghostBtn = { padding: "10px 14px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "black" };
+
